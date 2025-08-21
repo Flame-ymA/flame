@@ -39,13 +39,36 @@
           <p class="mt-1 text-xs text-neutral-400">显示为：StockID · Year · Make · Model</p>
         </div>
 
-        <!-- 日期（映射到 Sheet4 的“行”） -->
-        <div>
-          <label class="block text-sm mb-1">日期（行）<span class="text-sjgold">*</span></label>
-          <input id="inpDate" type="date" class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"/>
-          <p class="mt-1 text-xs text-neutral-400">Sheet4 行索引；若不存在将创建该日期行。</p>
-        </div>
-      </div>
+     <label for="dateSelect">选择日期：</label>
+<select id="dateSelect" class="border rounded p-2"></select>
+
+<script>
+  function loadDateOptions() {
+    const select = document.getElementById("dateSelect");
+    select.innerHTML = "";
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth(); // 0 = Jan
+    const today = now.getDate();
+
+    // 获取这个月的天数
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.textContent = `${month + 1}月${d}日`;
+
+      if (d === today) {
+        opt.selected = true; // 默认选中今天
+      }
+      select.appendChild(opt);
+    }
+  }
+
+  loadDateOptions();
+</script>
 
       <!-- 类别（映射到 Sheet4 的“列”） + 金额 -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
