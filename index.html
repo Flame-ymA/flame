@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>SJ Auto · 费用录入（按日期 × 类别写入 Sheet4）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { sjgold: '#FFD700' },
+          boxShadow: {
+            glow: '0 0 0 1px rgba(255,215,0,0.25), 0 10px 25px -5px rgba(0,0,0,0.5)'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-black text-neutral-100">
+  <!-- 顶部 -->
+  <header class="sticky top-0 z-10 bg-black/70 backdrop-blur border-b border-sjgold/30">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-lg md:text-xl font-semibold text-sjgold">费用录入（Sheet4）</h1>
+      <a href="admin.html" class="text-sm opacity-80 hover:opacity-100">返回 Admin</a>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+    <div class="rounded-2xl border border-sjgold/30 bg-zinc-950/70 shadow-glow p-5 md:p-6">
+      <!-- 选择行：车辆（来自 Sheet5） -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm mb-1">车辆（来自 Sheet5）<span class="text-sjgold">*</span></label>
+          <select id="selCar" class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
+            <option value="">加载中…</option>
+          </select>
+          <p class="mt-1 text-xs text-neutral-400">显示为：StockID · Year · Make · Model</p>
+        </div>
+
+        <!-- 日期（映射到 Sheet4 的“行”） -->
+        <div>
+          <label class="block text-sm mb-1">日期（行）<span class="text-sjgold">*</span></label>
+          <input id="inpDate" type="date" class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"/>
+          <p class="mt-1 text-xs text-neutral-400">Sheet4 行索引；若不存在将创建该日期行。</p>
+        </div>
+      </div>
+
+      <!-- 类别（映射到 Sheet4 的“列”） + 金额 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div>
+          <label class="block text-sm mb-1">费用类别（列）<span class="text-sjgold">*</span></label>
+          <select id="selCat" class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
+            <!-- JS 注入 11 项 -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1">金额（CAD）<span class="text-sjgold">*</span></label>
+          <input id="inpAmount" type="number" step="0.01" min="0" placeholder="例如 1200"
+                 class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"/>
+        </div>
+      </div>
+
+      <!-- 备注（可选） -->
+      <div class="mt-4">
+        <label class="block text-sm mb-1">备注（可选，将括号附在金额后）</label>
+        <input id="inpNote" type="text" placeholder="例如：车管所现金、XXX中介等"
+               class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"/>
+      </div>
+
+      <!-- 提交 -->
+      <div class="mt-6 flex items-center gap-3">
+        <button id="btnSubmit"
+                class="px-6 h-10 rounded-xl bg-sjgold text-black font-semibold hover:brightness-95 active:brightness-90 shadow-glow">
+          提交
+        </button>
+        <span id="msg" class="text-sm text-neutral-300"></span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const BACKEND = 'https://flameauto-write.onrender.com';
+
+    // 你的 11 个类别（我把你列的 10 个 + “其他费用”凑成 11，便于后续扩展）
+    const CATEGORIES = [
+      '税前买入金额',
+      '买断金额（lease）',
+      '牌照过户费',
+      '转Lease费or买断费',
+      '检修费用',
+      '加油费用',
+      '过户上牌费',
+      '银行手续费',
+      '客户返佣/中介反佣',
+      '员工激励',
+      '其他费用'
+    ];
+
+    // 规范化（匹配 Sheet5 表头时用）
+    const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+
+    // 1) 加载 Sheet5 的车辆（前四列：StockID, Year, Make, Model；并成一行显示）
+    async function loadCarsFromSheet5() {
+      const sel = document.getElementById('selCar');
+      sel.innerHTML = '<option value="">加载中…</option>';
+      try {
+        const r = await fetch(`${BACKEND}/sheet5`);
+        const { ok, values=[] } = await r.json();
+        if (!ok || !values.length) throw new Error('sheet5 empty');
+
+        const h = values[0] || [];
+        const map = h.map(norm);
+        const idx = {
+          stock: map.indexOf('stockid') !== -1 ? map.indexOf('stockid') : (map.indexOf('stock') !== -1 ? map.indexOf('stock') : -1),
+          year:  map.indexOf('year'),
+          make:  (map.indexOf('make') !== -1 ? map.indexOf('make') : map.indexOf('brand')),
+          model: map.indexOf('model'),
+        };
+
+        const items = values.slice(1).map(row => {
+          const stock = String(row?.[idx.stock] || '').trim();
+          const year  = String(row?.[idx.year]  || '').trim();
+          const make  = String(row?.[idx.make]  || '').trim();
+          const model = String(row?.[idx.model] || '').trim();
+          const title = [stock, year, make, model].filter(Boolean).join(' · ');
+          return stock ? { stock, year, make, model, title } : null;
+        }).filter(Boolean);
+
+        sel.innerHTML = '<option value="">请选择车辆</option>' + items.map(x =>
+          `<option value="${encodeURIComponent(JSON.stringify(x))}">${x.title}</option>`
+        ).join('');
+
+      } catch (e) {
+        console.error(e);
+        sel.innerHTML = '<option value="">加载失败</option>';
+      }
+    }
+
+    // 2) 类别下拉
+    function fillCategories() {
+      const sel = document.getElementById('selCat');
+      sel.innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    // 3) 提交
+    async function handleSubmit() {
+      const msg = document.getElementById('msg');
+      const btn = document.getElementById('btnSubmit');
+
+      // 车
+      const carRaw = document.getElementById('selCar').value;
+      if (!carRaw) return (msg.textContent = '请选择车辆', false);
+      const car = JSON.parse(decodeURIComponent(carRaw)); // {stock,year,make,model}
+
+      // 日期
+      const date = document.getElementById('inpDate').value; // yyyy-mm-dd
+      if (!date) return (msg.textContent = '请选择日期', false);
+
+      // 类别 & 金额 & 备注
+      const category = document.getElementById('selCat').value;
+      const amount   = document.getElementById('inpAmount').value.trim();
+      const note     = document.getElementById('inpNote').value.trim();
+
+      if (!category) return (msg.textContent = '请选择费用类别', false);
+      if (!amount)   return (msg.textContent = '请填写金额', false);
+
+      // 发送到后端（后端会写到 Sheet4 对应「日期行 × 类别列」的单元格里）
+      // 单元格文本 = `${StockID} ${Year} ${Make} ${Model} - ${金额}${(备注)}`
+      const payload = {
+        date,                       // yyyy-mm-dd —— Sheet4 的“行”索引
+        category,                   // 费用类别 —— Sheet4 的“列”索引（匹配表头）
+        amount,                     // 金额
+        note,                       // 备注（可选）
+        stock: car.stock,
+        year:  car.year,
+        make:  car.make,
+        model: car.model,
+      };
+
+      btn.disabled = true;
+      msg.textContent = '提交中…';
+      try {
+        const r = await fetch(`${BACKEND}/sheet4/upsert-expense-by-date`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const j = await r.json();
+        if (!r.ok || !j.ok) throw new Error(j.error || '写入失败');
+
+        msg.textContent = '✅ 已写入（同格覆盖写入）';
+        // 清空金额/备注，方便连续录入
+        document.getElementById('inpAmount').value = '';
+        document.getElementById('inpNote').value = '';
+      } catch (e) {
+        console.error(e);
+        msg.textContent = '❌ 提交失败：' + e.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // 事件
+    document.getElementById('btnSubmit').addEventListener('click', handleSubmit);
+
+    // 初始化
+    fillCategories();
+    loadCarsFromSheet5();
+  </script>
+</body>
+</html>
