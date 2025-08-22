@@ -90,26 +90,28 @@
                class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"
                placeholder="如：贴膜 / 拖车费 …"/>
       </div>
-<!-- 5. 上传图片（可选，多选） -->
-<div class="space-y-2">
-  <label class="block text-sm">上传图片（可多选）</label>
-  <input id="imgFiles" type="file" accept="image/*" multiple
-         class="block w-full text-sm file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-sjgold file:text-black hover:file:brightness-95"/>
-  <div class="flex items-center gap-2">
-    <button type="button" id="btnUploadImgs"
-            class="inline-flex items-center justify-center gap-2 px-4 h-10 rounded-xl border border-sjgold/40 text-sjgold hover:bg-zinc-900">
-      上传到 Cloudinary
-    </button>
-    <span id="upMsg" class="text-xs opacity-80"></span>
-  </div>
-  <div id="upList" class="space-y-2 text-xs"></div>
-  <div id="upPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
-</div>
+
+      <!-- 5. 上传图片（可选，多选） -->
+      <div class="space-y-2">
+        <label class="block text-sm">上传图片（可多选）</label>
+        <input id="imgFiles" type="file" accept="image/*" multiple
+               class="block w-full text-sm file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-sjgold file:text-black hover:file:brightness-95"/>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btnUploadImgs"
+                  class="inline-flex items-center justify-center gap-2 px-4 h-10 rounded-xl border border-sjgold/40 text-sjgold hover:bg-zinc-900">
+            上传到 Cloudinary
+          </button>
+          <span id="upMsg" class="text-xs opacity-80"></span>
+        </div>
+        <div id="upList" class="space-y-2 text-xs"></div>
+        <div id="upPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+      </div>
+
       <!-- 提交 -->
       <div class="pt-2">
         <button id="btnSubmit"
                 class="inline-flex items-center justify-center gap-2 px-6 h-11 rounded-xl bg-sjgold text-black font-semibold hover:brightness-95 active:brightness-90">
-          提交 
+          提交
         </button>
         <span id="msg" class="ml-3 text-sm opacity-80"></span>
       </div>
@@ -118,6 +120,7 @@
 
   <script>
     const BACKEND = 'https://flameauto-write.onrender.com';
+    const CLOUDINARY_CLOUD_NAME = 'duwckagtg'; // 确保与后端 env 一致
 
     // --------- 工具：表头规范化 & 下标查找（容错大小写/空格/下划线） ----------
     const normalize = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -137,6 +140,9 @@
       document.getElementById('btnSubmit').addEventListener('click', submitExpense);
       document.getElementById('calPrev').addEventListener('click', ()=>{ CAL_MONTH--; if(CAL_MONTH===0){CAL_MONTH=12;CAL_YEAR--;} renderCalendar(); });
       document.getElementById('calNext').addEventListener('click', ()=>{ CAL_MONTH++; if(CAL_MONTH===13){CAL_MONTH=1;CAL_YEAR++;} renderCalendar(); });
+
+      const btn = document.getElementById('btnUploadImgs');
+      if (btn) btn.addEventListener('click', uploadImagesForExpense);
     });
 
     // 1) 读 Sheet5 前四列→组合显示
@@ -284,102 +290,201 @@
                 || S4_PARSED.find(x => x.month==null && x.day===t.getDate()))?.raw;
       if(raw) selectHeaderRaw(raw);
     }
-// ========== 提交 ==========
-async function submitExpense(){
-  const carVal  = document.getElementById('carSelect').value;
-  const dateHdr = document.getElementById('dateHdrRaw').value;
-  const cat     = document.getElementById('catSelect').value;
-  const amount  = document.getElementById('amount').value.trim();
-  const note    = document.getElementById('note').value.trim();
-  const msgEl   = document.getElementById('msg');
 
-  const say = (t) => { msgEl.textContent = t; };
+    // ========== 提交 ==========
+    async function submitExpense(){
+      const carVal  = document.getElementById('carSelect').value;
+      const dateHdr = document.getElementById('dateHdrRaw').value;
+      const cat     = document.getElementById('catSelect').value;
+      const amount  = document.getElementById('amount').value.trim();
+      const note    = document.getElementById('note').value.trim();
+      const msgEl   = document.getElementById('msg');
 
-  if(!carVal)  return say('请选择车辆');
-  if(!dateHdr) return say('请选择日期');
-  if(!cat)     return say('请选择费用类别');
-  if(!amount || +amount < 0) return say('请填写有效金额');
+      const say = (t) => { msgEl.textContent = t; };
 
-  const {stock,year,make,model} = JSON.parse(carVal);
-  const dateISO = toISOFromHeader(dateHdr);
+      if(!carVal)  return say('请选择车辆');
+      if(!dateHdr) return say('请选择日期');
+      if(!cat)     return say('请选择费用类别');
+      if(!amount || +amount < 0) return say('请填写有效金额');
 
-  const payload = {
-    // 同时带上两套键名，兼容你后端的两种写法（date/dateISO、category/expenseKey）
-    date: dateISO,
-    dateISO,
-    category: cat,
-    expenseKey: cat,
-    amount,
-    stockId: stock,
-    year, make, model,
-    note
-  };
+      const {stock,year,make,model} = JSON.parse(carVal);
+      const dateISO = toISOFromHeader(dateHdr);
 
-  let res, raw;
-  try {
-    say('提交中…');
-    document.getElementById('btnSubmit').disabled = true;
+      const payload = {
+        // 同时带上两套键名，兼容后端（date/dateISO、category/expenseKey）
+        date: dateISO,
+        dateISO,
+        category: cat,
+        expenseKey: cat,
+        amount,
+        stockId: stock,
+        year, make, model,
+        note
+      };
 
-    res = await fetch(`${BACKEND}/sheet4-write`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+      let res, raw;
+      try {
+        say('提交中…');
+        document.getElementById('btnSubmit').disabled = true;
 
-    // 先取原始文本，方便在 JSON 解析失败时也能看到报错内容
-    raw = await res.text();
+        res = await fetch(`${BACKEND}/sheet4-write`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-    // 尝试解析 JSON（可能是 { ok:false, error:"..." }）
-    let data;
-    try { data = raw ? JSON.parse(raw) : {}; } catch { data = { ok: false, error: `非 JSON 响应：${raw.slice(0,200)}` }; }
+        // 先取原始文本，便于非 JSON 错误排查
+        raw = await res.text();
+        let data;
+        try { data = raw ? JSON.parse(raw) : {}; } catch { data = { ok: false, error: `非 JSON 响应：${raw.slice(0,200)}` }; }
 
-    // HTTP 非 2xx
-    if (!res.ok) {
-      return say(`❌ HTTP ${res.status} ${res.statusText} | ${data.error || raw || '未知错误'}`);
+        if (!res.ok) return say(`❌ HTTP ${res.status} ${res.statusText} | ${data.error || raw || '未知错误'}`);
+        if (data && (data.ok === false || data.success === false)) return say(`❌ 业务错误：${data.error || '未知原因'}`);
+
+        const where = data?.range ? `（写入 ${data.range}）` : '';
+        say(`✅ 写入成功 ${where}`);
+      } catch (err) {
+        say(`❌ 网络异常：${err?.message || err}`);
+      } finally {
+        document.getElementById('btnSubmit').disabled = false;
+      }
     }
 
-    // HTTP 2xx，但业务失败
-    if (data && (data.ok === false || data.success === false)) {
-      return say(`❌ 业务错误：${data.error || '未知原因'}`);
+    // 将表头“9/1、09-01、9.1、9月1日、1”等 => 本年 ISO（YYYY-MM-DD）
+    function toISOFromHeader(hdr){
+      const now  = new Date();
+      const year = now.getFullYear();
+      let m = null, d = null;
+
+      // 9月1日
+      const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+      if (zh) { m = +zh[1]; d = +zh[2]; }
+
+      if (m === null || d === null) {
+        // 9/1、09-01、9.1
+        const t  = String(hdr).replace(/\s+/g, '').replace(/[.\-]/g, '/');
+        const md = t.match(/(\d{1,2})\/(\d{1,2})/);
+        if (md) { m = +md[1]; d = +md[2]; }
+        // 仅“日”（如：1, 31）=> 用当月
+        else if (/^\d{1,2}$/.test(t)) { d = +t; m = now.getMonth() + 1; }
+      }
+
+      // 仍解析失败则用今天
+      if (!m || !d) { m = now.getMonth() + 1; d = now.getDate(); }
+
+      const mm = String(m).padStart(2, '0');
+      const dd = String(d).padStart(2, '0');
+      return `${year}-${mm}-${dd}`;
     }
 
-    // 成功
-    const where = data?.range ? `（写入 ${data.range}）` : '';
-    say(`✅ 写入成功 ${where}`);
-  } catch (err) {
-    // 网络层异常
-    say(`❌ 网络异常：${err?.message || err}`);
-  } finally {
-    document.getElementById('btnSubmit').disabled = false;
-  }
-}
+    // ==================== Cloudinary 多图上传 ====================
+    const toSlug = (s) => {
+      if (!s) return '';
+      let t = String(s).trim();
+      t = t.normalize('NFKD')
+           .replace(/[\u0300-\u036f]/g, '')
+           .replace(/\s+/g, '-')
+           .replace(/[&:：、，,.;。\/\\]+/g, '-')
+           .toLowerCase();
+      t = t.replace(/[^a-z0-9\u4e00-\u9fa5_-]/g, '-')
+           .replace(/-+/g, '-')
+           .replace(/(^-|-$)/g, '');
+      return t || 'x';
+    };
 
-// 将表头“9/1、09-01、9.1、9月1日、1”等 => 本年 ISO（YYYY-MM-DD）
-function toISOFromHeader(hdr){
-  const now  = new Date();
-  const year = now.getFullYear();
-  let m = null, d = null;
+    const safeFolder = ({stock, year, make, model}) =>
+      [stock, year, make, model].map(toSlug).join('_');
 
-  // 9月1日
-  const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
-  if (zh) { m = +zh[1]; d = +zh[2]; }
+    const pad2 = (n) => String(n).padStart(2, '0');
 
-  if (m === null || d === null) {
-    // 9/1、09-01、9.1
-    const t  = String(hdr).replace(/\s+/g, '').replace(/[.\-]/g, '/');
-    const md = t.match(/(\d{1,2})\/(\d{1,2})/);
-    if (md) { m = +md[1]; d = +md[2]; }
-    // 仅“日”（如：1, 31）=> 用当月
-    else if (/^\d{1,2}$/.test(t)) { d = +t; m = now.getMonth() + 1; }
-  }
+    async function uploadImagesForExpense(){
+      const upMsg  = document.getElementById('upMsg');
+      const upList = document.getElementById('upList');
+      const upPrev = document.getElementById('upPreview');
+      upMsg.textContent = '';
+      upList.innerHTML  = '';
+      upPrev.innerHTML  = '';
 
-  // 仍解析失败则用今天
-  if (!m || !d) { m = now.getMonth() + 1; d = now.getDate(); }
+      // 取当前所选车辆/类别
+      const carVal = document.getElementById('carSelect')?.value || '';
+      if (!carVal) { upMsg.textContent = '请先选择车辆'; return; }
+      const {stock, year, make, model} = JSON.parse(carVal);
 
-  const mm = String(m).padStart(2, '0');
-  const dd = String(d).padStart(2, '0');
-  return `${year}-${mm}-${dd}`;
-}
+      const categoryRaw = document.getElementById('catSelect')?.value || '';
+      if (!categoryRaw) { upMsg.textContent = '请先选择费用类别'; return; }
+
+      const files = document.getElementById('imgFiles')?.files;
+      if (!files || !files.length) { upMsg.textContent = '请选择要上传的图片'; return; }
+
+      const folder   = safeFolder({stock, year, make, model}); // 车型专属文件夹
+      const prefix   = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
+      const catSlug  = toSlug(categoryRaw);
+
+      upMsg.textContent = `准备上传 ${files.length} 张...`;
+
+      const results = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file     = files[i];
+        const indexStr = pad2(i+1); // 01、02...
+        const publicId = `${folder}/${prefix}__${catSlug}__${indexStr}`;
+
+        const row = document.createElement('div');
+        row.textContent = `#${indexStr} 正在上传：${file.name}`;
+        upList.appendChild(row);
+
+        try {
+          // 1) 先向后端要签名
+          const sigRes = await fetch(`${BACKEND}/get-signature`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ public_id: publicId })
+          });
+          if (!sigRes.ok) {
+            const t = await sigRes.text();
+            throw new Error(`签名失败：${t}`);
+          }
+          const { signature, timestamp, apiKey } = await sigRes.json();
+
+          // 2) 上传到 Cloudinary
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('api_key', apiKey);
+          fd.append('timestamp', timestamp);
+          fd.append('signature', signature);
+          fd.append('public_id', publicId);
+          // 附加标签/上下文，方便检索
+          fd.append('tags', [ 'expense', toSlug(stock), toSlug(make), toSlug(model), catSlug ].join(','));
+          fd.append('context', `alt=${prefix}__${catSlug}__${indexStr}|category=${categoryRaw}|stock=${stock}`);
+
+          const upRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: 'POST',
+            body: fd
+          });
+          const json = await upRes.json();
+          if (!upRes.ok || !json.secure_url) {
+            throw new Error(json.error?.message || '上传失败');
+          }
+
+          row.textContent = `#${indexStr} ✅ 成功：${json.public_id}`;
+          const img = document.createElement('img');
+          img.src = json.secure_url;
+          img.alt = json.public_id;
+          img.className = 'w-full h-24 object-cover rounded border border-sjgold/20';
+          upPrev.appendChild(img);
+
+          results.push(json);
+        } catch (e) {
+          row.textContent = `#${indexStr} ❌ 失败：${e.message}`;
+        }
+      }
+
+      if (results.length) {
+        upMsg.textContent = `完成：成功 ${results.length} / 共 ${files.length}`;
+      } else {
+        upMsg.textContent = '全部失败，请重试或检查控制台日志。';
+      }
+    }
   </script>
 </body>
 </html>
