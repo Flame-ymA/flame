@@ -270,71 +270,84 @@
                 || S4_PARSED.find(x => x.month==null && x.day===t.getDate()))?.raw;
       if(raw) selectHeaderRaw(raw);
     }
+// ========== 提交 ==========
+async function submitExpense(){
+  const carVal  = document.getElementById('carSelect').value;
+  const dateHdr = document.getElementById('dateHdrRaw').value;
+  const cat     = document.getElementById('catSelect').value;
+  const amount  = document.getElementById('amount').value.trim();
+  const note    = document.getElementById('note').value.trim();
+  const msgEl   = document.getElementById('msg');
 
-    // ========== 提交 ==========
-    async function submitExpense(){
-      const carVal  = document.getElementById('carSelect').value;
-      const dateHdr = document.getElementById('dateHdrRaw').value;
-      const cat     = document.getElementById('catSelect').value;
-      const amount  = document.getElementById('amount').value.trim();
-      const note    = document.getElementById('note').value.trim();
-      const msgEl   = document.getElementById('msg');
+  if (!carVal)  { msgEl.textContent = '请选择车辆'; return; }
+  if (!dateHdr) { msgEl.textContent = '请选择日期'; return; }
+  if (!cat)     { msgEl.textContent = '请选择费用类别'; return; }
+  if (!amount || +amount < 0) { msgEl.textContent = '请填写有效金额'; return; }
 
-      if(!carVal){  msgEl.textContent='请选择车辆'; return; }
-      if(!dateHdr){ msgEl.textContent='请选择日期'; return; }
-      if(!cat){     msgEl.textContent='请选择费用类别'; return; }
-      if(!amount || +amount<0){ msgEl.textContent='请填写有效金额'; return; }
+  const { stock, year, make, model } = JSON.parse(carVal);
+  const dateISO = toISOFromHeader(dateHdr); // 根据表头补全年月日
 
-      const {stock,year,make,model} = JSON.parse(carVal);
-      const dateISO = toISOFromHeader(dateHdr); // 仍用当年补全年月日
+  try {
+    msgEl.textContent = '提交中…';
+    document.getElementById('btnSubmit').disabled = true;
 
-      try{
-        msgEl.textContent='提交中…';
-        document.getElementById('btnSubmit').disabled = true;
+    const res = await fetch(`${BACKEND}/sheet4-write`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // 与后端 server.js 对齐的字段名
+        date: dateISO,
+        category: cat,
+        amount,
+        stockId: stock,
+        year, make, model,
+        note
+      })
+    });
 
-        // 与后端 /sheet4-write 对齐：使用 date / category
-        const res = await fetch(`${BACKEND}/sheet4-write`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            date: dateISO,
-            category: cat,
-            amount,
-            stockId: stock,
-            year, make, model,
-            note
-          })
-        });
-        const data = await res.json();
-        if(!res.ok || !data.success){
-          throw new Error(data.error || '写入失败');
-        }
-        msgEl.textContent = `✅ 已写入：${data.range}`;
-      }catch(e){
-        console.error(e);
-        msgEl.textContent = '❌ 提交失败：' + e.message;
-      }finally{
-        document.getElementById('btnSubmit').disabled = false;
-      }
+    // 兼容 text/json
+    let data;
+    try { data = await res.json(); } catch { data = { success: false, error: `HTTP ${res.status}` }; }
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '写入失败');
     }
 
-    // 表头“9/1、09-01、9.1、9月1日、1”等 → 年内 ISO
-    function toISOFromHeader(hdr){
-      const now = new Date(), year = now.getFullYear();
-      let m=null,d=null;
-      const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
-      if(zh){ m=+zh[1]; d=+zh[2]; }
-      if(m===null || d===null){
-        let t = String(hdr).replace(/\s+/g,'').replace(/[.-]/g,'/');
-        const md = t.match(/(\d{1,2})\/(\d{1,2})/);
-        if(md){ m=+md[1]; d=+md[2]; }
-        else if(/^\d{1,2}$/.test(t)){ d=+t; m = now.getMonth()+1; }
-      }
-      if(!m || !d){ m = now.getMonth()+1; d = now.getDate(); }
-      const mm = String(m).padStart(2,'0');
-      const dd = String(d).padStart(2,'0');
-      return `${year}-${mm}-${dd}`;
-    }
+    msgEl.textContent = `✅ 已写入：${data.range}`;
+  } catch (e) {
+    console.error('写入失败', e);
+    msgEl.textContent = '❌ 提交失败：' + e.message;
+  } finally {
+    document.getElementById('btnSubmit').disabled = false;
+  }
+}
+
+// 将表头“9/1、09-01、9.1、9月1日、1”等 => 本年 ISO（YYYY-MM-DD）
+function toISOFromHeader(hdr){
+  const now  = new Date();
+  const year = now.getFullYear();
+  let m = null, d = null;
+
+  // 9月1日
+  const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+  if (zh) { m = +zh[1]; d = +zh[2]; }
+
+  if (m === null || d === null) {
+    // 9/1、09-01、9.1
+    const t  = String(hdr).replace(/\s+/g, '').replace(/[.\-]/g, '/');
+    const md = t.match(/(\d{1,2})\/(\d{1,2})/);
+    if (md) { m = +md[1]; d = +md[2]; }
+    // 仅“日”（如：1, 31）=> 用当月
+    else if (/^\d{1,2}$/.test(t)) { d = +t; m = now.getMonth() + 1; }
+  }
+
+  // 仍解析失败则用今天
+  if (!m || !d) { m = now.getMonth() + 1; d = now.getDate(); }
+
+  const mm = String(m).padStart(2, '0');
+  const dd = String(d).padStart(2, '0');
+  return `${year}-${mm}-${dd}`;
+}
   </script>
 </body>
 </html>
