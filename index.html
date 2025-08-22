@@ -279,44 +279,62 @@ async function submitExpense(){
   const note    = document.getElementById('note').value.trim();
   const msgEl   = document.getElementById('msg');
 
-  if (!carVal)  { msgEl.textContent = '请选择车辆'; return; }
-  if (!dateHdr) { msgEl.textContent = '请选择日期'; return; }
-  if (!cat)     { msgEl.textContent = '请选择费用类别'; return; }
-  if (!amount || +amount < 0) { msgEl.textContent = '请填写有效金额'; return; }
+  const say = (t) => { msgEl.textContent = t; };
 
-  const { stock, year, make, model } = JSON.parse(carVal);
-  const dateISO = toISOFromHeader(dateHdr); // 根据表头补全年月日
+  if(!carVal)  return say('请选择车辆');
+  if(!dateHdr) return say('请选择日期');
+  if(!cat)     return say('请选择费用类别');
+  if(!amount || +amount < 0) return say('请填写有效金额');
 
+  const {stock,year,make,model} = JSON.parse(carVal);
+  const dateISO = toISOFromHeader(dateHdr);
+
+  const payload = {
+    // 同时带上两套键名，兼容你后端的两种写法（date/dateISO、category/expenseKey）
+    date: dateISO,
+    dateISO,
+    category: cat,
+    expenseKey: cat,
+    amount,
+    stockId: stock,
+    year, make, model,
+    note
+  };
+
+  let res, raw;
   try {
-    msgEl.textContent = '提交中…';
+    say('提交中…');
     document.getElementById('btnSubmit').disabled = true;
 
-    const res = await fetch(`${BACKEND}/sheet4-write`, {
+    res = await fetch(`${BACKEND}/sheet4-write`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        // 与后端 server.js 对齐的字段名
-        date: dateISO,
-        category: cat,
-        amount,
-        stockId: stock,
-        year, make, model,
-        note
-      })
+      body: JSON.stringify(payload)
     });
 
-    // 兼容 text/json
-    let data;
-    try { data = await res.json(); } catch { data = { success: false, error: `HTTP ${res.status}` }; }
+    // 先取原始文本，方便在 JSON 解析失败时也能看到报错内容
+    raw = await res.text();
 
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || '写入失败');
+    // 尝试解析 JSON（可能是 { ok:false, error:"..." }）
+    let data;
+    try { data = raw ? JSON.parse(raw) : {}; } catch { data = { ok: false, error: `非 JSON 响应：${raw.slice(0,200)}` }; }
+
+    // HTTP 非 2xx
+    if (!res.ok) {
+      return say(`❌ HTTP ${res.status} ${res.statusText} | ${data.error || raw || '未知错误'}`);
     }
 
-    msgEl.textContent = `✅ 已写入：${data.range}`;
-  } catch (e) {
-    console.error('写入失败', e);
-    msgEl.textContent = '❌ 提交失败：' + e.message;
+    // HTTP 2xx，但业务失败
+    if (data && (data.ok === false || data.success === false)) {
+      return say(`❌ 业务错误：${data.error || '未知原因'}`);
+    }
+
+    // 成功
+    const where = data?.range ? `（写入 ${data.range}）` : '';
+    say(`✅ 写入成功 ${where}`);
+  } catch (err) {
+    // 网络层异常
+    say(`❌ 网络异常：${err?.message || err}`);
   } finally {
     document.getElementById('btnSubmit').disabled = false;
   }
