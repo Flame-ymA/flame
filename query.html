@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SJ Auto · 费用查询</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme:{ extend:{ colors:{ sjgold:'#FFD700' } } } }
+  </script>
+</head>
+<body class="min-h-screen bg-black text-sjgold">
+  <header class="sticky top-0 z-10 bg-black/70 backdrop-blur border-b border-sjgold/20">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">费用查询（Sheet4）</h1>
+      <nav class="text-sm opacity-80 space-x-4">
+        <a href="index.html" class="hover:opacity-100">返回</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <!-- 日期选择（来自 Sheet4 表头） -->
+    <section class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5">
+      <h2 class="text-base font-semibold mb-3">选择日期</h2>
+
+      <!-- 月份切换 -->
+      <div class="flex items-center justify-between mb-2">
+        <button id="calPrev" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">←</button>
+        <div id="calTitle" class="text-sm font-semibold"></div>
+        <button id="calNext" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">→</button>
+      </div>
+
+      <!-- 周标题 -->
+      <div class="grid grid-cols-7 text-xs opacity-70 mb-1">
+        <div class="text-center py-1">Mon</div>
+        <div class="text-center py-1">Tue</div>
+        <div class="text-center py-1">Wed</div>
+        <div class="text-center py-1">Thu</div>
+        <div class="text-center py-1">Fri</div>
+        <div class="text-center py-1">Sat</div>
+        <div class="text-center py-1">Sun</div>
+      </div>
+
+      <!-- 日历网格 -->
+      <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
+      <input id="dateHdrRaw" type="hidden"/>
+      <p id="calHint" class="mt-2 text-xs opacity-70"></p>
+    </section>
+
+    <!-- 结果列表（单列） -->
+    <section class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5">
+      <h2 class="text-base font-semibold mb-3">当日费用项目</h2>
+      <div id="result" class="divide-y divide-sjgold/10">
+        <div class="py-10 text-center opacity-70">请选择上面的日期</div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const BACKEND = 'https://flameauto-write.onrender.com';
+
+    // ===== 工具：解析表头里的日期（支持 9/1、09-01、9.1、9月1日、仅“1..31”） =====
+    function parseHeaderMD(h){
+      const s = String(h||'').trim();
+      let m = s.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/); // 9月1日
+      if(m) return { month:+m[1], day:+m[2] };
+      const t = s.replace(/[.\-]/g,'/');
+      m = t.match(/(\d{1,2})\/(\d{1,2})/);               // 9/1、09-01
+      if(m) return { month:+m[1], day:+m[2] };
+      if(/^\d{1,2}$/.test(s)) return { month:null, day:+s }; // 仅“日”
+      return { month:null, day:null };
+    }
+
+    // ===== 全局状态 =====
+    let S4_VALUES = [];        // 整个 Sheet4
+    let S4_HEADERS_RAW = [];   // 第一行（除首列）原文
+    let S4_PARSED = [];        // [{raw, month, day}]
+    let CAL_YEAR, CAL_MONTH;   // 当前月历的年、月
+    let SELECTED_HDR_RAW = ''; // 当前选中的表头原文
+
+    document.addEventListener('DOMContentLoaded', () => {
+      init();
+      document.getElementById('calPrev').addEventListener('click', ()=>{ CAL_MONTH--; if(CAL_MONTH===0){CAL_MONTH=12;CAL_YEAR--;} renderCalendar(); });
+      document.getElementById('calNext').addEventListener('click', ()=>{ CAL_MONTH++; if(CAL_MONTH===13){CAL_MONTH=1;CAL_YEAR++;} renderCalendar(); });
+    });
+
+    async function init(){
+      try{
+        const r = await fetch(`${BACKEND}/sheet4`);
+        const { ok, values=[] } = await r.json();
+        if(!ok || !values.length) throw new Error('Sheet4 为空');
+        S4_VALUES = values;
+
+        const header = values[0] || [];
+        S4_HEADERS_RAW = header.slice(1).map(v => String(v||'').trim());
+        S4_PARSED = S4_HEADERS_RAW.map(raw => ({ raw, ...parseHeaderMD(raw) }));
+
+        // 月份初始化：若表头含月则优先当前月；否则就按当前月显示
+        const today = new Date();
+        CAL_YEAR = today.getFullYear();
+        const months = S4_PARSED.map(x=>x.month).filter(m=>m!=null);
+        CAL_MONTH = months.includes(today.getMonth()+1) ? (today.getMonth()+1) : (months[0] ?? (today.getMonth()+1));
+
+        renderCalendar();
+        autoPickTodayAndShow();
+      }catch(e){
+        console.error(e);
+        document.getElementById('calGrid').innerHTML =
+          '<div class="col-span-7 text-center py-6 opacity-70">日期加载失败</div>';
+      }
+    }
+
+    function renderCalendar(){
+      const grid  = document.getElementById('calGrid');
+      const title = document.getElementById('calTitle');
+      const hint  = document.getElementById('calHint');
+      title.textContent = `${CAL_YEAR}-${String(CAL_MONTH).padStart(2,'0')}`;
+
+      const first = new Date(CAL_YEAR, CAL_MONTH-1, 1);
+      const startCol = (first.getDay()+6)%7; // 周一=0 … 周日=6
+      const days = new Date(CAL_YEAR, CAL_MONTH, 0).getDate();
+
+      grid.innerHTML = '';
+      for(let i=0;i<startCol;i++) grid.appendChild(document.createElement('div'));
+
+      for(let d=1; d<=days; d++){
+        const btn = document.createElement('button');
+        btn.type='button';
+        btn.className='relative w-full aspect-square rounded-lg border border-sjgold/20 hover:border-sjgold/50 text-sm';
+
+        // 找一个能匹配本日的表头（优先同月日，其次仅“日”）
+        const match = S4_PARSED.find(x => x.month===CAL_MONTH && x.day===d)
+                   || S4_PARSED.find(x => x.month==null && x.day===d);
+
+        btn.textContent = d;
+
+        if(match){
+          btn.onclick = ()=>{ selectHeaderRaw(match.raw); showResultsByHeader(match.raw); };
+          if(SELECTED_HDR_RAW && match.raw===SELECTED_HDR_RAW)
+            btn.classList.add('bg-sjgold','text-black','font-semibold');
+        }else{
+          btn.classList.add('opacity-40','cursor-not-allowed');
+        }
+
+        // 标记今天
+        const t = new Date();
+        if(t.getFullYear()===CAL_YEAR && t.getMonth()+1===CAL_MONTH && t.getDate()===d)
+          btn.classList.add('ring-1','ring-sjgold/60');
+
+        grid.appendChild(btn);
+      }
+
+      const onlyDay = S4_PARSED.every(x => x.month==null || x.month===CAL_MONTH);
+      hint.textContent = onlyDay
+        ? '提示：表头多为“仅日”，此时月份切换只影响显示，不跨月匹配。'
+        : '如需其它月份，点击上方箭头切换后在日历中选择。';
+    }
+
+    function selectHeaderRaw(raw){
+      SELECTED_HDR_RAW = raw;
+      document.getElementById('dateHdrRaw').value = raw;
+      renderCalendar();
+    }
+
+    function autoPickTodayAndShow(){
+      const t = new Date();
+      const raw = (S4_PARSED.find(x => x.month===CAL_MONTH && x.day===t.getDate())
+                || S4_PARSED.find(x => x.month==null && x.day===t.getDate()))?.raw;
+      if(raw){
+        selectHeaderRaw(raw);
+        showResultsByHeader(raw);
+      }
+    }
+
+    // 根据选中的表头原文，展示“单列列表”
+    function showResultsByHeader(rawHeader){
+      const header = S4_VALUES[0] || [];
+      const rows = S4_VALUES.slice(1); // 去掉第一行表头
+      const colIndex = header.findIndex(h => String(h).trim() === String(rawHeader).trim());
+
+      const container = document.getElementById('result');
+      container.innerHTML = '';
+
+      if(colIndex === -1){
+        container.innerHTML = '<div class="py-10 text-center opacity-70">未找到该日期列</div>';
+        return;
+      }
+
+      // 渲染所有费用项目（第一列为项目名）
+      rows.forEach((row, i) => {
+        const key = row[0] || '';
+        const val = row[colIndex] ?? '';
+
+        const div = document.createElement('div');
+        div.className = 'py-3 flex items-start gap-3';
+
+        const left = document.createElement('div');
+        left.className = 'shrink-0 min-w-[9rem] text-sm opacity-80';
+        left.textContent = key;
+
+        const right = document.createElement('div');
+        right.className = 'grow text-sm';
+        right.textContent = (String(val).trim() || '—');
+
+        div.appendChild(left);
+        div.appendChild(right);
+        container.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
