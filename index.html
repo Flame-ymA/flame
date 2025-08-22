@@ -1,237 +1,231 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <title>SJ Auto · 费用录入（按日期 × 类别写入 Sheet4）</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SJ Auto · 费用录入</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          colors: { sjgold: '#FFD700' },
-          boxShadow: {
-            glow: '0 0 0 1px rgba(255,215,0,0.25), 0 10px 25px -5px rgba(0,0,0,0.5)'
-          }
-        }
-      }
+      theme:{ extend:{ colors:{ sjgold:'#FFD700' } } }
     }
   </script>
 </head>
-<body class="min-h-screen bg-black text-neutral-100">
-  <!-- 顶部 -->
-  <header class="sticky top-0 z-10 bg-black/70 backdrop-blur border-b border-sjgold/30">
-    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-      <h1 class="text-lg md:text-xl font-semibold text-sjgold">费用录入（Sheet4）</h1>
-      <a href="admin.html" class="text-sm opacity-80 hover:opacity-100">返回 Admin</a>
+<body class="min-h-screen bg-black text-sjgold">
+  <header class="sticky top-0 z-10 bg-black/70 backdrop-blur border-b border-sjgold/20">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">费用录入（Sheet4 ⇢ 按日期列）</h1>
+      <a href="index.html" class="text-sm opacity-75 hover:opacity-100">返回</a>
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 py-6">
-    <div class="rounded-2xl border border-sjgold/30 bg-zinc-950/70 shadow-glow p-5 md:p-6">
-      <!-- 选择行：车辆（来自 Sheet5） -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm mb-1">车辆（来自 Sheet5）<span class="text-sjgold">*</span></label>
-          <select id="selCar" class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
-            <option value="">加载中…</option>
-          </select>
-          <p class="mt-1 text-xs text-neutral-400">显示为：StockID · Year · Make · Model</p>
-        </div>
+  <main class="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <!-- 表单卡片 -->
+    <section class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5 space-y-5">
 
-     <label for="dateSelect">选择日期：</label>
-<select id="dateSelect" class="border rounded p-2"></select>
+      <!-- 1. 选择车辆（来自 Sheet5 前四列，合并展示） -->
+      <div>
+        <label class="block text-sm mb-1">选择车辆（来自 Sheet5）<span class="text-sjgold">*</span></label>
+        <select id="carSelect" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"></select>
+        <p class="mt-1 text-xs opacity-70">展示为：StockID · Year Make Model</p>
+      </div>
 
-<script>
-  function loadDateOptions() {
-    const select = document.getElementById("dateSelect");
-    select.innerHTML = "";
+      <!-- 2. 选择日期（下拉，默认今天；来自 Sheet4 的第一行） -->
+      <div>
+        <label class="block text-sm mb-1">日期（来自 Sheet4 表头）<span class="text-sjgold">*</span></label>
+        <select id="dateSelect" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"></select>
+        <p class="mt-1 text-xs opacity-70">只显示月/日；提交时自动补上当年用来写入。</p>
+      </div>
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth(); // 0 = Jan
-    const today = now.getDate();
+      <!-- 3. 费用类别（11 个选项） -->
+      <div>
+        <label class="block text-sm mb-1">费用类别<span class="text-sjgold">*</span></label>
+        <select id="catSelect" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
+          <option value="税前买入金额">税前买入金额</option>
+          <option value="买断金额（lease）">买断金额（lease）</option>
+          <option value="牌照过户费">牌照过户费</option>
+          <option value="转Lease费or买断费">转Lease费or买断费</option>
+          <option value="检修费用">检修费用</option>
+          <option value="加油费用">加油费用</option>
+          <option value="过户上牌费">过户上牌费</option>
+          <option value="银行手续费">银行手续费</option>
+          <option value="客户返佣">客户返佣</option>
+          <option value="中介返佣">中介返佣</option>
+          <option value="员工激励">员工激励</option>
+        </select>
+      </div>
 
-    // 获取这个月的天数
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-    for (let d = 1; d <= daysInMonth; d++) {
-      const opt = document.createElement("option");
-      opt.value = d;
-      opt.textContent = `${month + 1}月${d}日`;
-
-      if (d === today) {
-        opt.selected = true; // 默认选中今天
-      }
-      select.appendChild(opt);
-    }
-  }
-
-  loadDateOptions();
-</script>
-
-      <!-- 类别（映射到 Sheet4 的“列”） + 金额 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <div>
-          <label class="block text-sm mb-1">费用类别（列）<span class="text-sjgold">*</span></label>
-          <select id="selCat" class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
-            <!-- JS 注入 11 项 -->
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-sm mb-1">金额（CAD）<span class="text-sjgold">*</span></label>
-          <input id="inpAmount" type="number" step="0.01" min="0" placeholder="例如 1200"
-                 class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"/>
-        </div>
+      <!-- 4. 金额 -->
+      <div>
+        <label class="block text-sm mb-1">金额（CAD）<span class="text-sjgold">*</span></label>
+        <input id="amount" type="number" step="0.01" min="0"
+               class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"
+               placeholder="例如 2800"/>
       </div>
 
       <!-- 备注（可选） -->
-      <div class="mt-4">
-        <label class="block text-sm mb-1">备注（可选，将括号附在金额后）</label>
-        <input id="inpNote" type="text" placeholder="例如：车管所现金、XXX中介等"
-               class="w-full rounded-lg bg-black/60 border border-sjgold/40 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"/>
+      <div>
+        <label class="block text-sm mb-1">备注（可选）</label>
+        <input id="note" type="text"
+               class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"
+               placeholder="如：贴膜 / 拖车费 …"/>
       </div>
 
       <!-- 提交 -->
-      <div class="mt-6 flex items-center gap-3">
+      <div class="pt-2">
         <button id="btnSubmit"
-                class="px-6 h-10 rounded-xl bg-sjgold text-black font-semibold hover:brightness-95 active:brightness-90 shadow-glow">
-          提交
+                class="inline-flex items-center justify-center gap-2 px-6 h-11 rounded-xl bg-sjgold text-black font-semibold hover:brightness-95 active:brightness-90">
+          提交 / 覆盖
         </button>
-        <span id="msg" class="text-sm text-neutral-300"></span>
+        <span id="msg" class="ml-3 text-sm opacity-80"></span>
       </div>
-    </div>
+    </section>
   </main>
 
   <script>
     const BACKEND = 'https://flameauto-write.onrender.com';
 
-    // 你的 11 个类别（我把你列的 10 个 + “其他费用”凑成 11，便于后续扩展）
-    const CATEGORIES = [
-      '税前买入金额',
-      '买断金额（lease）',
-      '牌照过户费',
-      '转Lease费or买断费',
-      '检修费用',
-      '加油费用',
-      '过户上牌费',
-      '银行手续费',
-      '客户返佣/中介反佣',
-      '员工激励',
-      '其他费用'
-    ];
-
-    // 规范化（匹配 Sheet5 表头时用）
-    const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-
-    // 1) 加载 Sheet5 的车辆（前四列：StockID, Year, Make, Model；并成一行显示）
-    async function loadCarsFromSheet5() {
-      const sel = document.getElementById('selCar');
-      sel.innerHTML = '<option value="">加载中…</option>';
-      try {
-        const r = await fetch(`${BACKEND}/sheet5`);
-        const { ok, values=[] } = await r.json();
-        if (!ok || !values.length) throw new Error('sheet5 empty');
-
-        const h = values[0] || [];
-        const map = h.map(norm);
-        const idx = {
-          stock: map.indexOf('stockid') !== -1 ? map.indexOf('stockid') : (map.indexOf('stock') !== -1 ? map.indexOf('stock') : -1),
-          year:  map.indexOf('year'),
-          make:  (map.indexOf('make') !== -1 ? map.indexOf('make') : map.indexOf('brand')),
-          model: map.indexOf('model'),
-        };
-
-        const items = values.slice(1).map(row => {
-          const stock = String(row?.[idx.stock] || '').trim();
-          const year  = String(row?.[idx.year]  || '').trim();
-          const make  = String(row?.[idx.make]  || '').trim();
-          const model = String(row?.[idx.model] || '').trim();
-          const title = [stock, year, make, model].filter(Boolean).join(' · ');
-          return stock ? { stock, year, make, model, title } : null;
-        }).filter(Boolean);
-
-        sel.innerHTML = '<option value="">请选择车辆</option>' + items.map(x =>
-          `<option value="${encodeURIComponent(JSON.stringify(x))}">${x.title}</option>`
-        ).join('');
-
-      } catch (e) {
-        console.error(e);
-        sel.innerHTML = '<option value="">加载失败</option>';
-      }
-    }
-
-    // 2) 类别下拉
-    function fillCategories() {
-      const sel = document.getElementById('selCat');
-      sel.innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
-    }
-
-    // 3) 提交
-    async function handleSubmit() {
-      const msg = document.getElementById('msg');
-      const btn = document.getElementById('btnSubmit');
-
-      // 车
-      const carRaw = document.getElementById('selCar').value;
-      if (!carRaw) return (msg.textContent = '请选择车辆', false);
-      const car = JSON.parse(decodeURIComponent(carRaw)); // {stock,year,make,model}
-
-      // 日期
-      const date = document.getElementById('inpDate').value; // yyyy-mm-dd
-      if (!date) return (msg.textContent = '请选择日期', false);
-
-      // 类别 & 金额 & 备注
-      const category = document.getElementById('selCat').value;
-      const amount   = document.getElementById('inpAmount').value.trim();
-      const note     = document.getElementById('inpNote').value.trim();
-
-      if (!category) return (msg.textContent = '请选择费用类别', false);
-      if (!amount)   return (msg.textContent = '请填写金额', false);
-
-      // 发送到后端（后端会写到 Sheet4 对应「日期行 × 类别列」的单元格里）
-      // 单元格文本 = `${StockID} ${Year} ${Make} ${Model} - ${金额}${(备注)}`
-      const payload = {
-        date,                       // yyyy-mm-dd —— Sheet4 的“行”索引
-        category,                   // 费用类别 —— Sheet4 的“列”索引（匹配表头）
-        amount,                     // 金额
-        note,                       // 备注（可选）
-        stock: car.stock,
-        year:  car.year,
-        make:  car.make,
-        model: car.model,
-      };
-
-      btn.disabled = true;
-      msg.textContent = '提交中…';
-      try {
-        const r = await fetch(`${BACKEND}/sheet4/upsert-expense-by-date`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j.error || '写入失败');
-
-        msg.textContent = '✅ 已写入（同格覆盖写入）';
-        // 清空金额/备注，方便连续录入
-        document.getElementById('inpAmount').value = '';
-        document.getElementById('inpNote').value = '';
-      } catch (e) {
-        console.error(e);
-        msg.textContent = '❌ 提交失败：' + e.message;
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    // 事件
-    document.getElementById('btnSubmit').addEventListener('click', handleSubmit);
+    // 工具：规范化表头（供后端也会用，这里仅做展示构建）
+    const norm = s => String(s||'').toLowerCase().replace(/\s+/g,'').replace(/[.-]/g,'/');
 
     // 初始化
-    fillCategories();
-    loadCarsFromSheet5();
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCarsFromSheet5();
+      loadDatesFromSheet4();
+      document.getElementById('btnSubmit').addEventListener('click', submitExpense);
+    });
+
+    // 1) 读 Sheet5 前四列，组合成一条
+    async function loadCarsFromSheet5(){
+      try{
+        const r = await fetch(`${BACKEND}/sheet5`);
+        const { ok, values=[] } = await r.json();
+        if(!ok || !values.length) throw new Error('Sheet5 为空');
+
+        const header = values[0] || [];
+        const rows   = values.slice(1);
+
+        const stockIdx = header.indexOf('StockID');
+        const yearIdx  = header.indexOf('Year');
+        const makeIdx  = header.indexOf('Make');
+        const modelIdx = header.indexOf('Model');
+
+        const sel = document.getElementById('carSelect');
+        sel.innerHTML = '';
+        rows.forEach(row => {
+          const stock = row[stockIdx] || '';
+          const year  = row[yearIdx]  || '';
+          const make  = row[makeIdx]  || '';
+          const model = row[modelIdx] || '';
+          if(!stock) return;
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify({stock,year,make,model});
+          opt.textContent = `${stock} · ${year} ${make} ${model}`.trim();
+          sel.appendChild(opt);
+        });
+      }catch(e){
+        console.error(e);
+        document.getElementById('carSelect').innerHTML = '<option>加载失败</option>';
+      }
+    }
+
+    // 2) 读 Sheet4 第一行，生成“月/日”列表；默认选中今天（按“月/日”匹配）
+    async function loadDatesFromSheet4(){
+      try{
+        const r = await fetch(`${BACKEND}/sheet4`);
+        const { ok, values=[] } = await r.json();
+        if(!ok || !values.length) throw new Error('Sheet4 为空');
+        const header = values[0] || [];
+
+        const sel = document.getElementById('dateSelect');
+        sel.innerHTML = '';
+
+        const today = new Date();
+        const tm = today.getMonth()+1;
+        const td = today.getDate();
+
+        const display = (h) => String(h||'').trim(); // 原样显示
+        const sameMD = (h) => {
+          const t = norm(h);
+          // 支持 9/1、09/01、9月1日（已在后端处理更复杂情况，这里简单匹配）
+          const m = t.match(/(\d{1,2})\/(\d{1,2})/);
+          if(m) return (parseInt(m[1],10)===tm && parseInt(m[2],10)===td);
+          // 仅数字：只有“日”的列，用今天的月对齐
+          if(/^\d{1,2}$/.test(t)) return (parseInt(t,10)===td);
+          return false;
+        };
+
+        header.forEach((h,i)=>{
+          if(i===0) return; // 第一列是“项目名”，跳过
+          const opt = document.createElement('option');
+          opt.value = display(h); // 存原样表头，如 "9/1" 或 "1"
+          opt.textContent = display(h);
+          sel.appendChild(opt);
+        });
+
+        // 默认选中“今日”
+        const idx = Array.from(sel.options).findIndex(o=>sameMD(o.value));
+        if(idx>=0) sel.selectedIndex = idx;
+      }catch(e){
+        console.error(e);
+        document.getElementById('dateSelect').innerHTML = '<option>加载失败</option>';
+      }
+    }
+
+    // 3) 提交：把完整 ISO 日期（以今年为默认年）+ 车辆 + 类别 + 金额 + 备注 发给后端
+    async function submitExpense(){
+      const carVal   = document.getElementById('carSelect').value;
+      const dateHdr  = document.getElementById('dateSelect').value; // 表头里的“月/日”写法
+      const cat      = document.getElementById('catSelect').value;
+      const amount   = document.getElementById('amount').value.trim();
+      const note     = document.getElementById('note').value.trim();
+      const msgEl    = document.getElementById('msg');
+
+      if(!carVal){ msgEl.textContent='请选择车辆'; return; }
+      if(!dateHdr){ msgEl.textContent='请选择日期'; return; }
+      if(!cat){ msgEl.textContent='请选择费用类别'; return; }
+      if(!amount){ msgEl.textContent='请填写金额'; return; }
+
+      const {stock,year,make,model} = JSON.parse(carVal);
+
+      // 把“月/日”表头转成“当年的 YYYY-MM-DD”发给后端（后端只按月/日匹配列）
+      const dateISO = toISOFromHeader(dateHdr);
+
+      try{
+        const res = await fetch(`${BACKEND}/sheet4-write`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ dateISO, expenseKey:cat, amount, stockId:stock, year, make, model, note })
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok){
+          throw new Error(data.error || '写入失败');
+        }
+        msgEl.textContent = `✅ 已写入：${data.range}`;
+      }catch(e){
+        console.error(e);
+        msgEl.textContent = '❌ 提交失败：' + e.message;
+      }
+    }
+
+    // 将表头里的“9/1、09-01、9.1、9月1日、1”等转成年内 ISO（YYYY-MM-DD）
+    function toISOFromHeader(hdr){
+      const now = new Date();
+      const year = now.getFullYear();
+      let m=null,d=null;
+      const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+      if(zh){ m=parseInt(zh[1],10); d=parseInt(zh[2],10); }
+      if(m===null || d===null){
+        let t = String(hdr).replace(/\s+/g,'').replace(/[.-]/g,'/');
+        const md = t.match(/(\d{1,2})\/(\d{1,2})/);
+        if(md){ m=parseInt(md[1],10); d=parseInt(md[2],10); }
+        else if(/^\d{1,2}$/.test(t)){ d=parseInt(t,10); m = now.getMonth()+1; }
+      }
+      if(!m || !d) { m = now.getMonth()+1; d = now.getDate(); }
+      const mm = String(m).padStart(2,'0');
+      const dd = String(d).padStart(2,'0');
+      return `${year}-${mm}-${dd}`;
+    }
   </script>
 </body>
 </html>
