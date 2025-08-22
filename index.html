@@ -57,17 +57,17 @@
         <p class="mt-2 text-xs opacity-70" id="calHint"></p>
       </div>
 
-      <!-- 3. 费用类别（11 个选项） -->
+      <!-- 3. 费用类别（11 个选项——使用你给的原文） -->
       <div>
         <label class="block text-sm mb-1">费用类别<span class="text-sjgold">*</span></label>
         <select id="catSelect" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
           <option value="税前买入金额">税前买入金额</option>
           <option value="买断金额（lease）">买断金额（lease）</option>
-          <option value="牌照过户费">车主证过户费用</option>
-          <option value="转Lease费or买断费">转Lease费or买断费</option>
+          <option value="车主证过户费用">车主证过户费用</option>
+          <option value="转lease费用/买断费用">转lease费用/买断费用</option>
           <option value="检修费用">检修费用</option>
           <option value="加油费用">加油费用</option>
-          <option value="过户上牌费">上牌费用</option>
+          <option value="上牌费用">上牌费用</option>
           <option value="银行手续费">银行手续费</option>
           <option value="客户返佣">客户返佣</option>
           <option value="中介返佣">中介返佣</option>
@@ -105,9 +105,18 @@
   <script>
     const BACKEND = 'https://flameauto-write.onrender.com';
 
-    // ========== 公用 ==========
-    const norm = s => String(s||'').toLowerCase().replace(/\s+/g,'').replace(/[.-]/g,'/');
+    // --------- 工具：表头规范化 & 下标查找（容错大小写/空格/下划线） ----------
+    const normalize = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const getCol = (headers, candidates) => {
+      const map = headers.map(h => normalize(h));
+      for (const c of candidates) {
+        const i = map.indexOf(normalize(c));
+        if (i !== -1) return i;
+      }
+      return -1;
+    };
 
+    // ========== 初始化 ==========
     document.addEventListener('DOMContentLoaded', () => {
       loadCarsFromSheet5();
       loadDatesFromSheet4();
@@ -124,13 +133,15 @@
         if(!ok || !values.length) throw new Error('Sheet5 为空');
         const [header, ...rows] = values;
 
-        const stockIdx = header.indexOf('StockID');
-        const yearIdx  = header.indexOf('Year');
-        const makeIdx  = header.indexOf('Make');
-        const modelIdx = header.indexOf('Model');
+        // 兼容 StockID / Stockid / stock id 等
+        const stockIdx = getCol(header, ['StockID','Stockid','Stock Id','Stock Id.']);
+        const yearIdx  = getCol(header, ['Year']);
+        const makeIdx  = getCol(header, ['Make','Brand']);
+        const modelIdx = getCol(header, ['Model']);
 
         const sel = document.getElementById('carSelect');
         sel.innerHTML = '';
+
         rows.forEach(row => {
           const stock = row[stockIdx] || '';
           const year  = row[yearIdx]  || '';
@@ -177,8 +188,16 @@
 
         const today = new Date();
         CAL_YEAR = today.getFullYear();
+
         const months = S4_PARSED.map(x=>x.month).filter(m=>m!=null);
-        CAL_MONTH = months.includes(today.getMonth()+1) ? (today.getMonth()+1) : (months[0] ?? (today.getMonth()+1));
+        if (months.length === 0) {
+          // 表头全是“仅日”，直接用当前月
+          CAL_MONTH = today.getMonth() + 1;
+        } else {
+          CAL_MONTH = months.includes(today.getMonth()+1)
+            ? (today.getMonth()+1)
+            : months[0];
+        }
 
         renderCalendar();
         autoPickToday();
@@ -193,6 +212,14 @@
       const grid  = document.getElementById('calGrid');
       const title = document.getElementById('calTitle');
       const hint  = document.getElementById('calHint');
+
+      // 兜底
+      if (!CAL_YEAR || !CAL_MONTH) {
+        const t = new Date();
+        CAL_YEAR  = CAL_YEAR  || t.getFullYear();
+        CAL_MONTH = CAL_MONTH || (t.getMonth() + 1);
+      }
+
       title.textContent = `${CAL_YEAR}-${String(CAL_MONTH).padStart(2,'0')}`;
 
       const first = new Date(CAL_YEAR, CAL_MONTH-1, 1);
@@ -253,31 +280,42 @@
       const note    = document.getElementById('note').value.trim();
       const msgEl   = document.getElementById('msg');
 
-      if(!carVal)  return msg('请选择车辆');
-      if(!dateHdr) return msg('请选择日期');
-      if(!cat)     return msg('请选择费用类别');
-      if(!amount || +amount<0) return msg('请填写有效金额');
+      if(!carVal){  msgEl.textContent='请选择车辆'; return; }
+      if(!dateHdr){ msgEl.textContent='请选择日期'; return; }
+      if(!cat){     msgEl.textContent='请选择费用类别'; return; }
+      if(!amount || +amount<0){ msgEl.textContent='请填写有效金额'; return; }
 
       const {stock,year,make,model} = JSON.parse(carVal);
-      const dateISO = toISOFromHeader(dateHdr);
+      const dateISO = toISOFromHeader(dateHdr); // 仍用当年补全年月日
 
       try{
-        msg('提交中…'); document.getElementById('btnSubmit').disabled = true;
+        msgEl.textContent='提交中…';
+        document.getElementById('btnSubmit').disabled = true;
+
+        // 与后端 /sheet4-write 对齐：使用 date / category
         const res = await fetch(`${BACKEND}/sheet4-write`,{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ dateISO, expenseKey:cat, amount, stockId:stock, year, make, model, note })
+          body: JSON.stringify({
+            date: dateISO,
+            category: cat,
+            amount,
+            stockId: stock,
+            year, make, model,
+            note
+          })
         });
         const data = await res.json();
-        if(!res.ok || !data.ok) throw new Error(data.error || '写入失败');
-        msg(`✅ 已写入：${data.range}`);
+        if(!res.ok || !data.success){
+          throw new Error(data.error || '写入失败');
+        }
+        msgEl.textContent = `✅ 已写入：${data.range}`;
       }catch(e){
-        console.error(e); msg('❌ 提交失败：' + e.message);
+        console.error(e);
+        msgEl.textContent = '❌ 提交失败：' + e.message;
       }finally{
         document.getElementById('btnSubmit').disabled = false;
       }
-
-      function msg(t){ msgEl.textContent = t; }
     }
 
     // 表头“9/1、09-01、9.1、9月1日、1”等 → 年内 ISO
