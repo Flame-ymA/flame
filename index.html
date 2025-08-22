@@ -90,12 +90,26 @@
                class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"
                placeholder="如：贴膜 / 拖车费 …"/>
       </div>
-
+<!-- 5. 上传图片（可选，多选） -->
+<div class="space-y-2">
+  <label class="block text-sm">上传图片（可多选）</label>
+  <input id="imgFiles" type="file" accept="image/*" multiple
+         class="block w-full text-sm file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-sjgold file:text-black hover:file:brightness-95"/>
+  <div class="flex items-center gap-2">
+    <button type="button" id="btnUploadImgs"
+            class="inline-flex items-center justify-center gap-2 px-4 h-10 rounded-xl border border-sjgold/40 text-sjgold hover:bg-zinc-900">
+      上传到 Cloudinary
+    </button>
+    <span id="upMsg" class="text-xs opacity-80"></span>
+  </div>
+  <div id="upList" class="space-y-2 text-xs"></div>
+  <div id="upPreview" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+</div>
       <!-- 提交 -->
       <div class="pt-2">
         <button id="btnSubmit"
                 class="inline-flex items-center justify-center gap-2 px-6 h-11 rounded-xl bg-sjgold text-black font-semibold hover:brightness-95 active:brightness-90">
-          提交 / 覆盖
+          提交 
         </button>
         <span id="msg" class="ml-3 text-sm opacity-80"></span>
       </div>
