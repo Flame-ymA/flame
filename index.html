@@ -361,31 +361,35 @@
 
     // ==================== Cloudinary 多图上传（folder + basename public_id） ====================
     async function uploadImagesForExpense(){
-      const upMsg  = document.getElementById('upMsg');
-      const upList = document.getElementById('upList');
-      const upPrev = document.getElementById('upPreview');
-      const btn    = document.getElementById('btnUploadImgs');
+     const upMsg  = document.getElementById('upMsg');
+  const upList = document.getElementById('upList');
+  const upPrev = document.getElementById('upPreview');
+  upMsg.textContent = '';
+  upList.innerHTML  = '';
+  upPrev.innerHTML  = '';
 
-      upMsg.textContent = '';
-      upList.innerHTML  = '';
-      upPrev.innerHTML  = '';
+  // 🚨 强制校验
+  const carVal = document.getElementById('carSelect')?.value || '';
+  const dateHdr = document.getElementById('dateHdrRaw')?.value || '';
+  const catRaw = document.getElementById('catSelect')?.value || '';
+  const amount = document.getElementById('amount')?.value.trim() || '';
 
-      const carVal = document.getElementById('carSelect')?.value || '';
-      if (!carVal) { upMsg.textContent = '请先选择车辆'; return; }
-      const {stock, year, make, model} = JSON.parse(carVal);
+  if (!carVal) { upMsg.textContent = '❌ 请先选择车辆'; return; }
+  if (!dateHdr) { upMsg.textContent = '❌ 请先选择日期'; return; }
+  if (!catRaw) { upMsg.textContent = '❌ 请先选择费用类别'; return; }
+  if (!amount || +amount <= 0) { upMsg.textContent = '❌ 请先填写金额'; return; }
 
-      const categoryRaw = document.getElementById('catSelect')?.value || '';
-      if (!categoryRaw) { upMsg.textContent = '请先选择费用类别'; return; }
+  const {stock, year, make, model} = JSON.parse(carVal);
+  const files = document.getElementById('imgFiles')?.files;
+  if (!files || !files.length) { upMsg.textContent = '❌ 请选择要上传的图片'; return; }
 
-      const files = document.getElementById('imgFiles')?.files;
-      if (!files || !files.length) { upMsg.textContent = '请选择要上传的图片'; return; }
+  // 命名逻辑
+  const folder   = safeFolder({stock, year, make, model});
+  const prefix   = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
+  const catSlug  = toSlug(catRaw);
 
-      // 车型专属文件夹（只用 ASCII/汉字/下划线/短横线）
-      const folder  = safeFolder({stock, year, make, model});      // e.g. 25801_2024_ford_f150
-      const prefix  = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
-      const catSlug = toSlug(categoryRaw);
+  upMsg.textContent = `准备上传 ${files.length} 张...`;
 
-      upMsg.textContent = `准备上传 ${files.length} 张...`;
       btn.disabled = true;
 
       const results = [];
