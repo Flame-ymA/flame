@@ -359,8 +359,8 @@
       return `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     }
 
-    // ==================== Cloudinary 多图上传（folder + basename public_id） ====================
-   async function uploadImagesForExpense() {
+   // ==================== Cloudinary 多图上传（全部放 Home，不用 folder） ====================
+async function uploadImagesForExpense() {
   const upMsg  = document.getElementById('upMsg');
   const upList = document.getElementById('upList');
   const upPrev = document.getElementById('upPreview');
@@ -388,10 +388,10 @@
   const files = document.getElementById('imgFiles')?.files;
   if (!files || !files.length) { upMsg.textContent = '❌ 请选择要上传的图片'; return; }
 
-  // 命名与文件夹
-  const folder  = safeFolder({ stock, year, make, model });
+  // 命名：stock_year_make_model__类别__金额__序号（全部在 Home 根目录）
   const prefix  = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
   const catSlug = toSlug(catRaw);
+  const amtSlug = toSlug(amount);
   const pad2    = (n) => String(n).padStart(2, '0');
 
   upMsg.textContent = `准备上传 ${files.length} 张...`;
@@ -402,8 +402,8 @@
 
     for (let i = 0; i < files.length; i++) {
       const file      = files[i];
-      const indexStr  = pad2(i + 1);                          // 01、02…
-      const basename  = `${prefix}__${catSlug}__${indexStr}`;  // 仅文件名，不含斜杠
+      const indexStr  = pad2(i + 1);                           // 01、02…
+      const publicId  = `${prefix}__${catSlug}__${amtSlug}__${indexStr}`; // ⚠ 不带任何斜杠
 
       // 列表提示
       const row = document.createElement('div');
@@ -411,11 +411,11 @@
       upList.appendChild(row);
 
       try {
-        // 1) 先向后端要签名（显式传 folder + basename）
+        // 1) 先向后端要签名（只传 public_id，不传 folder）
         const sigRes = await fetch(`${BACKEND}/get-signature`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ public_id: basename, folder })
+          body: JSON.stringify({ public_id: publicId })
         });
         if (!sigRes.ok) {
           const t = await sigRes.text();
@@ -423,17 +423,17 @@
         }
         const { signature, timestamp, apiKey } = await sigRes.json();
 
-        // 2) 调 Cloudinary 上传（同样分开传 folder 与 public_id）
+        // 2) 调 Cloudinary 上传（不传 folder，落在 Home 根目录）
         const fd = new FormData();
         fd.append('file', file);
         fd.append('api_key', apiKey);
         fd.append('timestamp', timestamp);
         fd.append('signature', signature);
-        fd.append('public_id', basename);        // 只放 basename
-        fd.append('folder', folder);             // 目标文件夹
-        // 标签与上下文便于检索
+        fd.append('public_id', publicId); // ✅ 只有 public_id
+
+        // 可选：标签与上下文，便于检索
         fd.append('tags', ['expense', toSlug(stock), toSlug(make), toSlug(model), catSlug].join(','));
-        fd.append('context', `alt=${basename}|category=${catRaw}|stock=${stock}`);
+        fd.append('context', `alt=${publicId}|category=${catRaw}|stock=${stock}|amount=${amount}`);
 
         const upRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
           method: 'POST',
