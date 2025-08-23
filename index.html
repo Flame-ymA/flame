@@ -360,7 +360,7 @@
     }
 
     // ==================== Cloudinary 多图上传（Home 根目录；中文名） ====================
-    // ==================== Cloudinary 多图上传（Home 根目录，支持中文命名） ====================
+// ==================== Cloudinary 多图上传（Home 根目录，支持中文命名，带详细错误） ====================
 async function uploadImagesForExpense() {
   const upMsg  = document.getElementById('upMsg');
   const upList = document.getElementById('upList');
@@ -371,7 +371,7 @@ async function uploadImagesForExpense() {
   upList.innerHTML  = '';
   upPrev.innerHTML  = '';
 
-  // ✅ 强制前置校验
+  // ✅ 前置校验
   const carVal  = document.getElementById('carSelect')?.value || '';
   const dateHdr = document.getElementById('dateHdrRaw')?.value || '';
   const catRaw  = document.getElementById('catSelect')?.value || '';
@@ -386,9 +386,8 @@ async function uploadImagesForExpense() {
   const files = document.getElementById('imgFiles')?.files;
   if (!files || !files.length) { upMsg.textContent = '❌ 请选择要上传的图片'; return; }
 
-  // 命名：StockID_Year_Make_Model__类别__金额__日期__序号
   const dateISO    = toISOFromHeader(dateHdr); // YYYY-MM-DD
-  const prefix     = `${stock}_${year}_${make}_${model}`; // 允许中文/空格，后端已支持
+  const prefix     = `${stock}_${year}_${make}_${model}`;     // 支持中文
   const catPart    = catRaw;
   const amountPart = amount;
   const datePart   = dateISO;
@@ -416,41 +415,67 @@ async function uploadImagesForExpense() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ public_id: basename })
         });
-        const sigText = await sigRes.text();
-        if (!sigRes.ok) throw new Error(`签名失败：${sigText}`);
-        const { signature, timestamp, apiKey } = JSON.parse(sigText);
 
-        // 2) 上传到 Cloudinary
+        const sigText = await sigRes.text();
+        if (!sigRes.ok) {
+          row.textContent = `#${indexStr} ❌ 签名失败：HTTP ${sigRes.status} ${sigRes.statusText} | ${sigText.slice(0,180)}`;
+          console.error('get-signature error:', sigText);
+          continue;
+        }
+
+        let sigJson;
+        try { sigJson = JSON.parse(sigText); } catch { sigJson = {}; }
+        const { signature, timestamp, apiKey } = sigJson || {};
+        if (!signature || !timestamp || !apiKey) {
+          row.textContent = `#${indexStr} ❌ 签名响应缺字段：${sigText.slice(0,200)}`;
+          console.error('Bad signature payload:', sigJson);
+          continue;
+        }
+
+        // 2) 上传到 Cloudinary（仅 public_id）
         const fd = new FormData();
         fd.append('file', file);
         fd.append('api_key', apiKey);
         fd.append('timestamp', timestamp);
         fd.append('signature', signature);
         fd.append('public_id', basename);
-        // 标签/上下文（不参与签名，可以有中文）
+        // （可选）标签/上下文——不参与签名，可以包含中文
         fd.append('tags', ['expense', stock, make, model, catPart].join(','));
         fd.append('context', `alt=${basename}|category=${catRaw}|stock=${stock}|amount=${amount}|date=${dateISO}`);
 
-        const upRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-          method: 'POST',
-          body: fd
-        });
+        const upRes  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { method: 'POST', body: fd });
         const upText = await upRes.text();
-        const json = upText ? JSON.parse(upText) : {};
-        if (!upRes.ok || !json.secure_url) {
-          throw new Error(json?.error?.message || upRes.statusText || '上传失败');
+
+        // 控制台保留完整响应，便于排查
+        console.log('cloudinary upload resp:', upRes.status, upRes.statusText, upText);
+
+        let upJson = {};
+        try { upJson = upText ? JSON.parse(upText) : {}; } catch { /* 非 JSON 返回也显示文本 */ }
+
+        if (!upRes.ok || !upJson.secure_url) {
+          const msg = upJson?.error?.message || upRes.statusText || '上传失败';
+          row.textContent = `#${indexStr} ❌ 上传失败：${msg}`;
+          // 额外把 Cloudinary 的 “String to sign …” 报文打印出来
+          if (upJson?.error?.message) {
+            console.error('Cloudinary error:', upJson.error.message);
+          } else {
+            console.error('Cloudinary non-JSON error body:', upText);
+          }
+          continue;
         }
 
-        row.textContent = `#${indexStr} ✅ 成功：${json.public_id}`;
+        // ✅ 成功
+        row.textContent = `#${indexStr} ✅ 成功：${upJson.public_id}`;
         const img = document.createElement('img');
-        img.src = json.secure_url;
-        img.alt = json.public_id;
+        img.src = upJson.secure_url;
+        img.alt = upJson.public_id;
         img.className = 'w-full h-24 object-cover rounded border border-sjgold/20';
         upPrev.appendChild(img);
+        results.push(upJson);
 
-        results.push(json);
       } catch (err) {
-        row.textContent = `#${indexStr} ❌ 失败：${err.message}`;
+        row.textContent = `#${indexStr} ❌ 异常：${err?.message || err}`;
+        console.error('uploadImagesForExpense error:', err);
       }
     }
   } finally {
@@ -459,7 +484,7 @@ async function uploadImagesForExpense() {
 
   upMsg.textContent = results.length
     ? `完成：成功 ${results.length} / 共 ${files.length}`
-    : '全部失败，请重试或检查控制台日志。';
+    : '全部失败，请展开每行错误或查看控制台日志。';
 }
   </script>
 </body>
