@@ -20,44 +20,34 @@
   <main class="max-w-3xl mx-auto px-4 py-6 space-y-6">
     <section class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5 space-y-5">
 
-      <!-- 1. 选择车辆（来自 Sheet5 前四列，合并展示） -->
+      <!-- 1) 选择车辆（Sheet5） -->
       <div>
         <label class="block text-sm mb-1">选择车辆（来自 Sheet5）<span class="text-sjgold">*</span></label>
         <select id="carSelect" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500"></select>
         <p class="mt-1 text-xs opacity-70">展示为：StockID · Year Make Model</p>
       </div>
 
-      <!-- 2. 选择日期（来自 Sheet4 的第一行）→ 月历网格 -->
+      <!-- 2) 选择日期（表头）→ 月历网格 -->
       <div>
         <label class="block text-sm mb-2">日期（来自 Sheet4 表头）<span class="text-sjgold">*</span></label>
 
-        <!-- 月份切换 -->
         <div class="flex items-center justify-between mb-2">
           <button id="calPrev" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">←</button>
           <div id="calTitle" class="text-sm font-semibold"></div>
           <button id="calNext" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">→</button>
         </div>
 
-        <!-- 周标题 -->
         <div class="grid grid-cols-7 text-xs opacity-70 mb-1">
-          <div class="text-center py-1">Mon</div>
-          <div class="text-center py-1">Tue</div>
-          <div class="text-center py-1">Wed</div>
-          <div class="text-center py-1">Thu</div>
-          <div class="text-center py-1">Fri</div>
-          <div class="text-center py-1">Sat</div>
-          <div class="text-center py-1">Sun</div>
+          <div class="text-center py-1">Mon</div><div class="text-center py-1">Tue</div><div class="text-center py-1">Wed</div>
+          <div class="text-center py-1">Thu</div><div class="text-center py-1">Fri</div><div class="text-center py-1">Sat</div><div class="text-center py-1">Sun</div>
         </div>
 
-        <!-- 日历网格 -->
         <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
-
-        <!-- 保存选中的“表头原文”，提交用 -->
         <input id="dateHdrRaw" type="hidden" />
         <p class="mt-2 text-xs opacity-70" id="calHint"></p>
       </div>
 
-      <!-- 3. 费用类别（11 个选项——使用你给的原文） -->
+      <!-- 3) 费用类别 -->
       <div>
         <label class="block text-sm mb-1">费用类别<span class="text-sjgold">*</span></label>
         <select id="catSelect" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500">
@@ -75,7 +65,7 @@
         </select>
       </div>
 
-      <!-- 4. 金额 -->
+      <!-- 4) 金额 -->
       <div>
         <label class="block text-sm mb-1">金额（CAD）<span class="text-sjgold">*</span></label>
         <input id="amount" type="number" step="0.01" min="0"
@@ -91,7 +81,7 @@
                placeholder="如：贴膜 / 拖车费 …"/>
       </div>
 
-      <!-- 5. 上传图片（可选，多选） -->
+      <!-- 5) 上传图片（可选，多选） -->
       <div class="space-y-2">
         <label class="block text-sm">上传图片（可多选）</label>
         <input id="imgFiles" type="file" accept="image/*" multiple
@@ -120,9 +110,9 @@
 
   <script>
     const BACKEND = 'https://flameauto-write.onrender.com';
-    const CLOUDINARY_CLOUD_NAME = 'duwckagtg'; // 确保与后端 env 一致
+    const CLOUDINARY_CLOUD_NAME = 'duwckagtg'; // 与后端 env 一致
 
-    // --------- 工具：表头规范化 & 下标查找（容错大小写/空格/下划线） ----------
+    // ---------- 小工具 ----------
     const normalize = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
     const getCol = (headers, candidates) => {
       const map = headers.map(h => normalize(h));
@@ -132,6 +122,22 @@
       }
       return -1;
     };
+    const toSlug = (s) => {
+      if (!s) return '';
+      let t = String(s).trim();
+      t = t.normalize('NFKD')
+           .replace(/[\u0300-\u036f]/g, '')
+           .replace(/\s+/g, '-')
+           .replace(/[&:：、，,.;。\/\\]+/g, '-')
+           .toLowerCase();
+      t = t.replace(/[^a-z0-9\u4e00-\u9fa5_-]/g, '-')
+           .replace(/-+/g, '-')
+           .replace(/(^-|-$)/g, '');
+      return t || 'x';
+    };
+    const safeFolder = ({stock, year, make, model}) =>
+      [stock, year, make, model].map(toSlug).join('_');
+    const pad2 = (n) => String(n).padStart(2, '0');
 
     // ========== 初始化 ==========
     document.addEventListener('DOMContentLoaded', () => {
@@ -140,9 +146,7 @@
       document.getElementById('btnSubmit').addEventListener('click', submitExpense);
       document.getElementById('calPrev').addEventListener('click', ()=>{ CAL_MONTH--; if(CAL_MONTH===0){CAL_MONTH=12;CAL_YEAR--;} renderCalendar(); });
       document.getElementById('calNext').addEventListener('click', ()=>{ CAL_MONTH++; if(CAL_MONTH===13){CAL_MONTH=1;CAL_YEAR++;} renderCalendar(); });
-
-      const btn = document.getElementById('btnUploadImgs');
-      if (btn) btn.addEventListener('click', uploadImagesForExpense);
+      document.getElementById('btnUploadImgs').addEventListener('click', uploadImagesForExpense);
     });
 
     // 1) 读 Sheet5 前四列→组合显示
@@ -153,7 +157,6 @@
         if(!ok || !values.length) throw new Error('Sheet5 为空');
         const [header, ...rows] = values;
 
-        // 兼容 StockID / Stockid / stock id 等
         const stockIdx = getCol(header, ['StockID','Stockid','Stock Id','Stock Id.']);
         const yearIdx  = getCol(header, ['Year']);
         const makeIdx  = getCol(header, ['Make','Brand']);
@@ -180,19 +183,19 @@
     }
 
     // ========== 月历相关 ==========
-    let S4_HEADERS_RAW = [];   // 第一行（除首列）原文
-    let S4_PARSED = [];        // [{raw, month, day}]
-    let CAL_YEAR, CAL_MONTH;   // 当前显示的年月
-    let SELECTED_HDR_RAW = ''; // 选中的表头原文
+    let S4_HEADERS_RAW = [];
+    let S4_PARSED = [];
+    let CAL_YEAR, CAL_MONTH;
+    let SELECTED_HDR_RAW = '';
 
     function parseHeaderMD(h){
       const s = String(h||'').trim();
-      let m = s.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/); // 9月1日
+      let m = s.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
       if(m) return { month:+m[1], day:+m[2] };
       const t = s.replace(/[.\-]/g,'/');
-      m = t.match(/(\d{1,2})\/(\d{1,2})/);               // 9/1、09-01
+      m = t.match(/(\d{1,2})\/(\d{1,2})/);
       if(m) return { month:+m[1], day:+m[2] };
-      if(/^\d{1,2}$/.test(s)) return { month:null, day:+s }; // 仅“日”
+      if(/^\d{1,2}$/.test(s)) return { month:null, day:+s };
       return { month:null, day:null };
     }
 
@@ -210,14 +213,8 @@
         CAL_YEAR = today.getFullYear();
 
         const months = S4_PARSED.map(x=>x.month).filter(m=>m!=null);
-        if (months.length === 0) {
-          // 表头全是“仅日”，直接用当前月
-          CAL_MONTH = today.getMonth() + 1;
-        } else {
-          CAL_MONTH = months.includes(today.getMonth()+1)
-            ? (today.getMonth()+1)
-            : months[0];
-        }
+        CAL_MONTH = months.length === 0 ? (today.getMonth()+1)
+                  : (months.includes(today.getMonth()+1) ? (today.getMonth()+1) : months[0]);
 
         renderCalendar();
         autoPickToday();
@@ -233,17 +230,15 @@
       const title = document.getElementById('calTitle');
       const hint  = document.getElementById('calHint');
 
-      // 兜底
       if (!CAL_YEAR || !CAL_MONTH) {
         const t = new Date();
         CAL_YEAR  = CAL_YEAR  || t.getFullYear();
         CAL_MONTH = CAL_MONTH || (t.getMonth() + 1);
       }
-
       title.textContent = `${CAL_YEAR}-${String(CAL_MONTH).padStart(2,'0')}`;
 
       const first = new Date(CAL_YEAR, CAL_MONTH-1, 1);
-      const startCol = (first.getDay()+6)%7; // 周一=0 … 周日=6
+      const startCol = (first.getDay()+6)%7;
       const days = new Date(CAL_YEAR, CAL_MONTH, 0).getDate();
 
       grid.innerHTML = '';
@@ -299,7 +294,6 @@
       const amount  = document.getElementById('amount').value.trim();
       const note    = document.getElementById('note').value.trim();
       const msgEl   = document.getElementById('msg');
-
       const say = (t) => { msgEl.textContent = t; };
 
       if(!carVal)  return say('请选择车辆');
@@ -311,14 +305,10 @@
       const dateISO = toISOFromHeader(dateHdr);
 
       const payload = {
-        // 同时带上两套键名，兼容后端（date/dateISO、category/expenseKey）
-        date: dateISO,
-        dateISO,
-        category: cat,
-        expenseKey: cat,
+        date: dateISO, dateISO,
+        category: cat, expenseKey: cat,
         amount,
-        stockId: stock,
-        year, make, model,
+        stockId: stock, year, make, model,
         note
       };
 
@@ -333,7 +323,6 @@
           body: JSON.stringify(payload)
         });
 
-        // 先取原始文本，便于非 JSON 错误排查
         raw = await res.text();
         let data;
         try { data = raw ? JSON.parse(raw) : {}; } catch { data = { ok: false, error: `非 JSON 响应：${raw.slice(0,200)}` }; }
@@ -350,62 +339,37 @@
       }
     }
 
-    // 将表头“9/1、09-01、9.1、9月1日、1”等 => 本年 ISO（YYYY-MM-DD）
+    // 表头转年内 ISO
     function toISOFromHeader(hdr){
       const now  = new Date();
       const year = now.getFullYear();
       let m = null, d = null;
 
-      // 9月1日
       const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
       if (zh) { m = +zh[1]; d = +zh[2]; }
 
       if (m === null || d === null) {
-        // 9/1、09-01、9.1
         const t  = String(hdr).replace(/\s+/g, '').replace(/[.\-]/g, '/');
         const md = t.match(/(\d{1,2})\/(\d{1,2})/);
         if (md) { m = +md[1]; d = +md[2]; }
-        // 仅“日”（如：1, 31）=> 用当月
         else if (/^\d{1,2}$/.test(t)) { d = +t; m = now.getMonth() + 1; }
       }
-
-      // 仍解析失败则用今天
       if (!m || !d) { m = now.getMonth() + 1; d = now.getDate(); }
 
-      const mm = String(m).padStart(2, '0');
-      const dd = String(d).padStart(2, '0');
-      return `${year}-${mm}-${dd}`;
+      return `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     }
 
-    // ==================== Cloudinary 多图上传 ====================
-    const toSlug = (s) => {
-      if (!s) return '';
-      let t = String(s).trim();
-      t = t.normalize('NFKD')
-           .replace(/[\u0300-\u036f]/g, '')
-           .replace(/\s+/g, '-')
-           .replace(/[&:：、，,.;。\/\\]+/g, '-')
-           .toLowerCase();
-      t = t.replace(/[^a-z0-9\u4e00-\u9fa5_-]/g, '-')
-           .replace(/-+/g, '-')
-           .replace(/(^-|-$)/g, '');
-      return t || 'x';
-    };
-
-    const safeFolder = ({stock, year, make, model}) =>
-      [stock, year, make, model].map(toSlug).join('_');
-
-    const pad2 = (n) => String(n).padStart(2, '0');
-
+    // ==================== Cloudinary 多图上传（folder + basename public_id） ====================
     async function uploadImagesForExpense(){
       const upMsg  = document.getElementById('upMsg');
       const upList = document.getElementById('upList');
       const upPrev = document.getElementById('upPreview');
+      const btn    = document.getElementById('btnUploadImgs');
+
       upMsg.textContent = '';
       upList.innerHTML  = '';
       upPrev.innerHTML  = '';
 
-      // 取当前所选车辆/类别
       const carVal = document.getElementById('carSelect')?.value || '';
       if (!carVal) { upMsg.textContent = '请先选择车辆'; return; }
       const {stock, year, make, model} = JSON.parse(carVal);
@@ -416,29 +380,30 @@
       const files = document.getElementById('imgFiles')?.files;
       if (!files || !files.length) { upMsg.textContent = '请选择要上传的图片'; return; }
 
-      const folder   = safeFolder({stock, year, make, model}); // 车型专属文件夹
-      const prefix   = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
-      const catSlug  = toSlug(categoryRaw);
+      // 车型专属文件夹（只用 ASCII/汉字/下划线/短横线）
+      const folder  = safeFolder({stock, year, make, model});      // e.g. 25801_2024_ford_f150
+      const prefix  = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
+      const catSlug = toSlug(categoryRaw);
 
       upMsg.textContent = `准备上传 ${files.length} 张...`;
+      btn.disabled = true;
 
       const results = [];
 
       for (let i = 0; i < files.length; i++) {
         const file     = files[i];
         const indexStr = pad2(i+1); // 01、02...
-        const publicId = `${folder}/${prefix}__${catSlug}__${indexStr}`;
-
+        const basename = `${prefix}__${catSlug}__${indexStr}`; // 不带斜杠的 public_id
         const row = document.createElement('div');
         row.textContent = `#${indexStr} 正在上传：${file.name}`;
         upList.appendChild(row);
 
         try {
-          // 1) 先向后端要签名
+          // 1) 先向后端要签名（后端会用 folder+basename 组合成 fullPublicId 签名）
           const sigRes = await fetch(`${BACKEND}/get-signature`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ public_id: publicId })
+            body: JSON.stringify({ public_id: basename, folder })
           });
           if (!sigRes.ok) {
             const t = await sigRes.text();
@@ -446,16 +411,17 @@
           }
           const { signature, timestamp, apiKey } = await sigRes.json();
 
-          // 2) 上传到 Cloudinary
+          // 2) 上传到 Cloudinary（显式传 folder 与 basename public_id）
           const fd = new FormData();
           fd.append('file', file);
           fd.append('api_key', apiKey);
           fd.append('timestamp', timestamp);
           fd.append('signature', signature);
-          fd.append('public_id', publicId);
-          // 附加标签/上下文，方便检索
+          fd.append('public_id', basename); // 只放 basename
+          fd.append('folder', folder);      // 放到对应文件夹
+          // 可选：标签与上下文，方便检索
           fd.append('tags', [ 'expense', toSlug(stock), toSlug(make), toSlug(model), catSlug ].join(','));
-          fd.append('context', `alt=${prefix}__${catSlug}__${indexStr}|category=${categoryRaw}|stock=${stock}`);
+          fd.append('context', `alt=${basename}|category=${categoryRaw}|stock=${stock}`);
 
           const upRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
             method: 'POST',
@@ -479,6 +445,7 @@
         }
       }
 
+      btn.disabled = false;
       if (results.length) {
         upMsg.textContent = `完成：成功 ${results.length} / 共 ${files.length}`;
       } else {
