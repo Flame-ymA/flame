@@ -360,106 +360,107 @@
     }
 
     // ==================== Cloudinary 多图上传（Home 根目录；中文名） ====================
-    async function uploadImagesForExpense() {
-      const upMsg  = document.getElementById('upMsg');
-      const upList = document.getElementById('upList');
-      const upPrev = document.getElementById('upPreview');
-      const btn    = document.getElementById('btnUploadImgs');
+    // ==================== Cloudinary 多图上传（Home 根目录，支持中文命名） ====================
+async function uploadImagesForExpense() {
+  const upMsg  = document.getElementById('upMsg');
+  const upList = document.getElementById('upList');
+  const upPrev = document.getElementById('upPreview');
+  const btn    = document.getElementById('btnUploadImgs');
 
-      upMsg.textContent = '';
-      upList.innerHTML  = '';
-      upPrev.innerHTML  = '';
+  upMsg.textContent = '';
+  upList.innerHTML  = '';
+  upPrev.innerHTML  = '';
 
-      // ✅ 强制前置校验
-      const carVal  = document.getElementById('carSelect')?.value || '';
-      const dateHdr = document.getElementById('dateHdrRaw')?.value || '';
-      const catRaw  = document.getElementById('catSelect')?.value || '';
-      const amount  = document.getElementById('amount')?.value.trim() || '';
+  // ✅ 强制前置校验
+  const carVal  = document.getElementById('carSelect')?.value || '';
+  const dateHdr = document.getElementById('dateHdrRaw')?.value || '';
+  const catRaw  = document.getElementById('catSelect')?.value || '';
+  const amount  = document.getElementById('amount')?.value.trim() || '';
 
-      if (!carVal)  { upMsg.textContent = '❌ 请先选择车辆'; return; }
-      if (!dateHdr) { upMsg.textContent = '❌ 请先选择日期'; return; }
-      if (!catRaw)  { upMsg.textContent = '❌ 请先选择费用类别'; return; }
-      if (!amount || +amount <= 0) { upMsg.textContent = '❌ 请先填写金额'; return; }
+  if (!carVal)  { upMsg.textContent = '❌ 请先选择车辆'; return; }
+  if (!dateHdr) { upMsg.textContent = '❌ 请先选择日期'; return; }
+  if (!catRaw)  { upMsg.textContent = '❌ 请先选择费用类别'; return; }
+  if (!amount || +amount <= 0) { upMsg.textContent = '❌ 请先填写金额'; return; }
 
-      const { stock, year, make, model } = JSON.parse(carVal);
-      const files = document.getElementById('imgFiles')?.files;
-      if (!files || !files.length) { upMsg.textContent = '❌ 请选择要上传的图片'; return; }
+  const { stock, year, make, model } = JSON.parse(carVal);
+  const files = document.getElementById('imgFiles')?.files;
+  if (!files || !files.length) { upMsg.textContent = '❌ 请选择要上传的图片'; return; }
 
-      const dateISO    = toISOFromHeader(dateHdr);
-      const prefix     = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}`;
-      const catPart    = toSlug(catRaw);
-      const amountPart = toSlug(amount);
-      const datePart   = toSlug(dateISO);
+  // 命名：StockID_Year_Make_Model__类别__金额__日期__序号
+  const dateISO    = toISOFromHeader(dateHdr); // YYYY-MM-DD
+  const prefix     = `${stock}_${year}_${make}_${model}`; // 允许中文/空格，后端已支持
+  const catPart    = catRaw;
+  const amountPart = amount;
+  const datePart   = dateISO;
+  const pad2       = (n) => String(n).padStart(2, '0');
 
-      upMsg.textContent = `准备上传 ${files.length} 张...`;
+  upMsg.textContent = `准备上传 ${files.length} 张...`;
 
-      const results = [];
+  const results = [];
+  try {
+    if (btn) btn.disabled = true;
+
+    for (let i = 0; i < files.length; i++) {
+      const file     = files[i];
+      const indexStr = pad2(i + 1);
+      const basename = `${prefix}__${catPart}__${amountPart}__${datePart}__${indexStr}`;
+
+      const row = document.createElement('div');
+      row.textContent = `#${indexStr} 正在上传：${file.name}`;
+      upList.appendChild(row);
+
       try {
-        if (btn) btn.disabled = true;
+        // 1) 申请签名（仅 public_id，不传 folder）
+        const sigRes = await fetch(`${BACKEND}/get-signature`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ public_id: basename })
+        });
+        const sigText = await sigRes.text();
+        if (!sigRes.ok) throw new Error(`签名失败：${sigText}`);
+        const { signature, timestamp, apiKey } = JSON.parse(sigText);
 
-        for (let i = 0; i < files.length; i++) {
-          const file     = files[i];
-          const indexStr = pad2(i + 1);
-          // 最终命名：StockID_Year_Make_Model__类别__金额__日期__序号
-          const basename = `${prefix}__${catPart}__${amountPart}__${datePart}__${indexStr}`;
+        // 2) 上传到 Cloudinary
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('api_key', apiKey);
+        fd.append('timestamp', timestamp);
+        fd.append('signature', signature);
+        fd.append('public_id', basename);
+        // 标签/上下文（不参与签名，可以有中文）
+        fd.append('tags', ['expense', stock, make, model, catPart].join(','));
+        fd.append('context', `alt=${basename}|category=${catRaw}|stock=${stock}|amount=${amount}|date=${dateISO}`);
 
-          const row = document.createElement('div');
-          row.textContent = `#${indexStr} 正在上传：${file.name}`;
-          upList.appendChild(row);
-
-          try {
-            // 1) 申请签名（仅 public_id，不传 folder -> Home 根目录）
-            const sigRes = await fetch(`${BACKEND}/get-signature`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ public_id: basename })
-            });
-            if (!sigRes.ok) {
-              const t = await sigRes.text();
-              throw new Error(`签名失败：${t}`);
-            }
-            const { signature, timestamp, apiKey } = await sigRes.json();
-
-            // 2) 上传到 Cloudinary（仅 public_id）
-            const fd = new FormData();
-            fd.append('file', file);
-            fd.append('api_key', apiKey);
-            fd.append('timestamp', timestamp);
-            fd.append('signature', signature);
-            fd.append('public_id', basename);
-            // 标签/上下文（可含中文）
-            fd.append('tags', ['expense', toSlug(stock), toSlug(make), toSlug(model), catPart].join(','));
-            fd.append('context', `alt=${basename}|category=${catRaw}|stock=${stock}|amount=${amount}|date=${dateISO}`);
-
-            const upRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-              method: 'POST',
-              body: fd
-            });
-            const json = await upRes.json();
-            if (!upRes.ok || !json.secure_url) {
-              throw new Error(json?.error?.message || '上传失败');
-            }
-
-            row.textContent = `#${indexStr} ✅ 成功：${json.public_id}`;
-            const img = document.createElement('img');
-            img.src = json.secure_url;
-            img.alt = json.public_id;
-            img.className = 'w-full h-24 object-cover rounded border border-sjgold/20';
-            upPrev.appendChild(img);
-
-            results.push(json);
-          } catch (err) {
-            row.textContent = `#${indexStr} ❌ 失败：${err.message}`;
-          }
+        const upRes = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+          method: 'POST',
+          body: fd
+        });
+        const upText = await upRes.text();
+        const json = upText ? JSON.parse(upText) : {};
+        if (!upRes.ok || !json.secure_url) {
+          throw new Error(json?.error?.message || upRes.statusText || '上传失败');
         }
-      } finally {
-        if (btn) btn.disabled = false;
-      }
 
-      upMsg.textContent = results.length
-        ? `完成：成功 ${results.length} / 共 ${files.length}`
-        : '全部失败，请重试或检查控制台日志。';
+        row.textContent = `#${indexStr} ✅ 成功：${json.public_id}`;
+        const img = document.createElement('img');
+        img.src = json.secure_url;
+        img.alt = json.public_id;
+        img.className = 'w-full h-24 object-cover rounded border border-sjgold/20';
+        upPrev.appendChild(img);
+
+        results.push(json);
+      } catch (err) {
+        row.textContent = `#${indexStr} ❌ 失败：${err.message}`;
+      }
     }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+
+  upMsg.textContent = results.length
+    ? `完成：成功 ${results.length} / 共 ${files.length}`
+    : '全部失败，请重试或检查控制台日志。';
+}
   </script>
 </body>
 </html>
