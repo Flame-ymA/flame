@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>SJ Auto · 费用查询</title>
+  <title>SJ Auto · 查询</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = { theme:{ extend:{ colors:{ sjgold:'#FFD700' } } } }
@@ -11,115 +11,244 @@
 </head>
 <body class="min-h-screen bg-black text-sjgold">
   <header class="sticky top-0 z-10 bg-black/70 backdrop-blur border-b border-sjgold/20">
-    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-      <h1 class="text-xl font-semibold">费用查询（Sheet4）</h1>
-      <nav class="text-sm opacity-80 space-x-4">
-        <a href="index.html" class="hover:opacity-100">返回</a>
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-xl font-semibold">查询 · 费用 & 照片</h1>
+      <nav class="text-sm flex gap-4">
+        <a href="index.html" class="opacity-75 hover:opacity-100">录入</a>
       </nav>
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
-    <!-- 日期选择（来自 Sheet4 表头） -->
-    <section class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5">
-      <h2 class="text-base font-semibold mb-3">选择日期</h2>
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <!-- 模式切换 -->
+    <div class="flex gap-2">
+      <button id="tabByDate" class="px-4 h-10 rounded-lg border border-sjgold/30 bg-sjgold text-black font-medium">按日期</button>
+      <button id="tabByCar"  class="px-4 h-10 rounded-lg border border-sjgold/30 hover:bg-zinc-900">按车型</button>
+    </div>
 
-      <!-- 月份切换 -->
-      <div class="flex items-center justify-between mb-2">
-        <button id="calPrev" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">←</button>
-        <div id="calTitle" class="text-sm font-semibold"></div>
-        <button id="calNext" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">→</button>
+    <!-- ========== 模式 A：按日期 ========== -->
+    <section id="panelDate" class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5 space-y-4">
+      <!-- 日期选择：网格日历（读 Sheet4 第一行） -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-sm opacity-80">选择日期（来自 Sheet4 表头）</div>
+          <div class="flex items-center gap-2">
+            <button id="calPrevA" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">←</button>
+            <div id="calTitleA" class="text-sm font-semibold"></div>
+            <button id="calNextA" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">→</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-7 text-xs opacity-70 mb-1">
+          <div class="text-center py-1">Mon</div><div class="text-center py-1">Tue</div><div class="text-center py-1">Wed</div>
+          <div class="text-center py-1">Thu</div><div class="text-center py-1">Fri</div><div class="text-center py-1">Sat</div><div class="text-center py-1">Sun</div>
+        </div>
+        <div id="calGridA" class="grid grid-cols-7 gap-1"></div>
+        <input id="dateHdrRawA" type="hidden" />
+        <p id="calHintA" class="text-xs opacity-70 mt-1"></p>
       </div>
 
-      <!-- 周标题 -->
-      <div class="grid grid-cols-7 text-xs opacity-70 mb-1">
-        <div class="text-center py-1">Mon</div>
-        <div class="text-center py-1">Tue</div>
-        <div class="text-center py-1">Wed</div>
-        <div class="text-center py-1">Thu</div>
-        <div class="text-center py-1">Fri</div>
-        <div class="text-center py-1">Sat</div>
-        <div class="text-center py-1">Sun</div>
+      <!-- 费用类别选择（可筛选） -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-sm mb-1">费用类别筛选</label>
+          <select id="catFilterA" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none">
+            <option value="">（全部）</option>
+            <option>税前买入金额</option>
+            <option>买断金额（lease）</option>
+            <option>车主证过户费用</option>
+            <option>转lease费用/买断费用</option>
+            <option>检修费用</option>
+            <option>加油费用</option>
+            <option>上牌费用</option>
+            <option>银行手续费</option>
+            <option>客户返佣</option>
+            <option>中介返佣</option>
+            <option>员工激励</option>
+          </select>
+        </div>
+        <div class="sm:col-span-2 flex items-end">
+          <button id="btnLoadA" class="px-5 h-10 rounded-lg bg-sjgold text-black font-semibold hover:brightness-95">加载</button>
+          <span id="msgA" class="ml-3 text-sm opacity-80"></span>
+        </div>
       </div>
 
-      <!-- 日历网格 -->
-      <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
-      <input id="dateHdrRaw" type="hidden"/>
-      <p id="calHint" class="mt-2 text-xs opacity-70"></p>
+      <!-- 结果：左=文本，右=图片 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div>
+          <div class="text-sm mb-2 opacity-80">记录</div>
+          <div id="listA" class="space-y-2"></div>
+        </div>
+        <div>
+          <div class="text-sm mb-2 opacity-80">图片</div>
+          <div id="picsA" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+        </div>
+      </div>
     </section>
 
-    <!-- 结果列表（单列） -->
-    <section class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5">
-      <h2 class="text-base font-semibold mb-3">当日费用项目</h2>
-      <div id="result" class="divide-y divide-sjgold/10">
-        <div class="py-10 text-center opacity-70">请选择上面的日期</div>
+    <!-- ========== 模式 B：按车型 ========== -->
+    <section id="panelCar" class="hidden bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label class="block text-sm mb-1">选择车型（来自 Sheet5）</label>
+          <select id="carSelectB" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none"></select>
+        </div>
+        <div class="sm:col-span-2 flex items-end">
+          <button id="btnLoadB" class="px-5 h-10 rounded-lg bg-sjgold text-black font-semibold hover:brightness-95">加载</button>
+          <span id="msgB" class="ml-3 text-sm opacity-80"></span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div>
+          <div class="text-sm mb-2 opacity-80">该车费用记录（全部日期）</div>
+          <div id="listB" class="space-y-2"></div>
+        </div>
+        <div>
+          <div class="text-sm mb-2 opacity-80">该车所有照片</div>
+          <div id="picsB" class="grid grid-cols-3 sm:grid-cols-4 gap-2"></div>
+        </div>
       </div>
     </section>
   </main>
 
   <script>
     const BACKEND = 'https://flameauto-write.onrender.com';
+    const CLOUDINARY_CLOUD_NAME = 'duwckagtg';
 
-    // ===== 工具：解析表头里的日期（支持 9/1、09-01、9.1、9月1日、仅“1..31”） =====
+    // ---------- 小工具 ----------
+    const normalize = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const getCol = (headers, candidates) => {
+      const map = headers.map(h => normalize(h));
+      for (const c of candidates) {
+        const i = map.indexOf(normalize(c));
+        if (i !== -1) return i;
+      }
+      return -1;
+    };
+    const toSlug = (s) => {
+      if (!s) return '';
+      let t = String(s).trim();
+      t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+           .replace(/\s+/g, '-')
+           .replace(/[&:：、，,.;。\/\\]+/g, '-')
+           .toLowerCase();
+      t = t.replace(/[^a-z0-9\u4e00-\u9fa5_-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '');
+      return t || 'x';
+    };
+    const safeFolder = ({stock, year, make, model}) =>
+      [stock, year, make, model].map(toSlug).join('_');
+
+    // 拆 “2025-09-01” 或 “9/1、9月1日、09-01、仅‘1’” -> 年内 ISO
+    function toISOFromHeader(hdr){
+      const now = new Date(), year = now.getFullYear();
+      let m=null,d=null;
+      const zh = String(hdr).match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+      if(zh){ m=+zh[1]; d=+zh[2]; }
+      if(m===null || d===null){
+        let t = String(hdr).replace(/\s+/g,'').replace(/[.\-]/g,'/');
+        const md = t.match(/(\d{1,2})\/(\d{1,2})/);
+        if(md){ m=+md[1]; d=+md[2]; }
+        else if(/^\d{1,2}$/.test(t)){ d=+t; m = now.getMonth()+1; }
+      }
+      if(!m || !d){ m = now.getMonth()+1; d = now.getDate(); }
+      return `${year}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+
+    // 从 cell 文本解析多条记录（“车型 | 金额 | 备注 || 车型 | 金额 ...”）
+    function parseCellEntries(cell){
+      const out = [];
+      if(!cell) return out;
+      String(cell).split('||').map(s=>s.trim()).filter(Boolean).forEach(one=>{
+        const parts = one.split('|').map(x=>x.trim());
+        const car   = parts[0] || '';                // “Stock Year Make Model”
+        const amount= parts[1] || '';
+        const note  = parts[2] || '';
+        out.push({car, amount, note, raw: one});
+      });
+      return out;
+    }
+
+    // 从“Stock Year Make Model”粗略拆回对象（年=第二段；余下合并）
+    function splitCarLine(carLine){
+      if(!carLine) return {stock:'',year:'',make:'',model:''};
+      const seg = carLine.split(/\s+/).filter(Boolean);
+      const stock = seg[0] || '';
+      const year  = seg[1] || '';
+      const make  = seg[2] || '';
+      const model = seg.slice(3).join(' ') || '';
+      return {stock, year, make, model};
+    }
+
+    // Cloudinary 搜图（通过后端代理，按 public_id 前缀）
+    async function cloudSearch(prefix){
+      const url = `${BACKEND}/cloudinary-search?stock=${encodeURIComponent(prefix)}`;
+      const r = await fetch(url);
+      if(!r.ok) throw new Error(`Cloudinary 查询失败：HTTP ${r.status}`);
+      return r.json(); // {resources: [{public_id, secure_url, ...}]}
+    }
+
+    // ========== Tab 切换 ==========
+    const tabByDate = document.getElementById('tabByDate');
+    const tabByCar  = document.getElementById('tabByCar');
+    const panelDate = document.getElementById('panelDate');
+    const panelCar  = document.getElementById('panelCar');
+
+    tabByDate.addEventListener('click', () => {
+      tabByDate.classList.add('bg-sjgold','text-black');
+      tabByCar.classList.remove('bg-sjgold','text-black');
+      panelDate.classList.remove('hidden');
+      panelCar.classList.add('hidden');
+    });
+    tabByCar.addEventListener('click', () => {
+      tabByCar.classList.add('bg-sjgold','text-black');
+      tabByDate.classList.remove('bg-sjgold','text-black');
+      panelCar.classList.remove('hidden');
+      panelDate.classList.add('hidden');
+    });
+
+    // ========== 按日期 ==========
+    let S4_HEADERS_RAW_A = [];
+    let S4_PARSED_A = [];
+    let CAL_YEAR_A, CAL_MONTH_A;
+    let SELECTED_HDR_RAW_A = '';
+
     function parseHeaderMD(h){
       const s = String(h||'').trim();
-      let m = s.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/); // 9月1日
+      let m = s.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
       if(m) return { month:+m[1], day:+m[2] };
-      const t = s.replace(/[.\-]/g,'/');
-      m = t.match(/(\d{1,2})\/(\d{1,2})/);               // 9/1、09-01
+      const t = s.replace(/[.\-]/g,'/'); m = t.match(/(\d{1,2})\/(\d{1,2})/);
       if(m) return { month:+m[1], day:+m[2] };
-      if(/^\d{1,2}$/.test(s)) return { month:null, day:+s }; // 仅“日”
+      if(/^\d{1,2}$/.test(s)) return { month:null, day:+s };
       return { month:null, day:null };
     }
 
-    // ===== 全局状态 =====
-    let S4_VALUES = [];        // 整个 Sheet4
-    let S4_HEADERS_RAW = [];   // 第一行（除首列）原文
-    let S4_PARSED = [];        // [{raw, month, day}]
-    let CAL_YEAR, CAL_MONTH;   // 当前月历的年、月
-    let SELECTED_HDR_RAW = ''; // 当前选中的表头原文
+    async function loadDatesFromSheet4(){
+      const r = await fetch(`${BACKEND}/sheet4`);
+      const { ok, values=[] } = await r.json();
+      if(!ok || !values.length) throw new Error('Sheet4 为空');
+      const header = values[0] || [];
+      S4_HEADERS_RAW_A = header.slice(1).map(v => String(v||'').trim());
+      S4_PARSED_A = S4_HEADERS_RAW_A.map(raw => ({ raw, ...parseHeaderMD(raw) }));
 
-    document.addEventListener('DOMContentLoaded', () => {
-      init();
-      document.getElementById('calPrev').addEventListener('click', ()=>{ CAL_MONTH--; if(CAL_MONTH===0){CAL_MONTH=12;CAL_YEAR--;} renderCalendar(); });
-      document.getElementById('calNext').addEventListener('click', ()=>{ CAL_MONTH++; if(CAL_MONTH===13){CAL_MONTH=1;CAL_YEAR++;} renderCalendar(); });
-    });
-
-    async function init(){
-      try{
-        const r = await fetch(`${BACKEND}/sheet4`);
-        const { ok, values=[] } = await r.json();
-        if(!ok || !values.length) throw new Error('Sheet4 为空');
-        S4_VALUES = values;
-
-        const header = values[0] || [];
-        S4_HEADERS_RAW = header.slice(1).map(v => String(v||'').trim());
-        S4_PARSED = S4_HEADERS_RAW.map(raw => ({ raw, ...parseHeaderMD(raw) }));
-
-        // 月份初始化：若表头含月则优先当前月；否则就按当前月显示
-        const today = new Date();
-        CAL_YEAR = today.getFullYear();
-        const months = S4_PARSED.map(x=>x.month).filter(m=>m!=null);
-        CAL_MONTH = months.includes(today.getMonth()+1) ? (today.getMonth()+1) : (months[0] ?? (today.getMonth()+1));
-
-        renderCalendar();
-        autoPickTodayAndShow();
-      }catch(e){
-        console.error(e);
-        document.getElementById('calGrid').innerHTML =
-          '<div class="col-span-7 text-center py-6 opacity-70">日期加载失败</div>';
-      }
+      const today = new Date();
+      CAL_YEAR_A = today.getFullYear();
+      const months = S4_PARSED_A.map(x=>x.month).filter(m=>m!=null);
+      CAL_MONTH_A = months.length ? (months.includes(today.getMonth()+1) ? (today.getMonth()+1) : months[0]) : (today.getMonth()+1);
+      renderCalendarA();
+      autoPickTodayA();
+      // 也把全表缓存到 window 供模式B复用
+      window.__SHEET4_CACHE__ = values;
     }
 
-    function renderCalendar(){
-      const grid  = document.getElementById('calGrid');
-      const title = document.getElementById('calTitle');
-      const hint  = document.getElementById('calHint');
-      title.textContent = `${CAL_YEAR}-${String(CAL_MONTH).padStart(2,'0')}`;
+    function renderCalendarA(){
+      const grid  = document.getElementById('calGridA');
+      const title = document.getElementById('calTitleA');
+      const hint  = document.getElementById('calHintA');
+      title.textContent = `${CAL_YEAR_A}-${String(CAL_MONTH_A).padStart(2,'0')}`;
 
-      const first = new Date(CAL_YEAR, CAL_MONTH-1, 1);
-      const startCol = (first.getDay()+6)%7; // 周一=0 … 周日=6
-      const days = new Date(CAL_YEAR, CAL_MONTH, 0).getDate();
+      const first = new Date(CAL_YEAR_A, CAL_MONTH_A-1, 1);
+      const startCol = (first.getDay()+6)%7;
+      const days = new Date(CAL_YEAR_A, CAL_MONTH_A, 0).getDate();
 
       grid.innerHTML = '';
       for(let i=0;i<startCol;i++) grid.appendChild(document.createElement('div'));
@@ -129,85 +258,221 @@
         btn.type='button';
         btn.className='relative w-full aspect-square rounded-lg border border-sjgold/20 hover:border-sjgold/50 text-sm';
 
-        // 找一个能匹配本日的表头（优先同月日，其次仅“日”）
-        const match = S4_PARSED.find(x => x.month===CAL_MONTH && x.day===d)
-                   || S4_PARSED.find(x => x.month==null && x.day===d);
-
+        const match = S4_PARSED_A.find(x => x.month===CAL_MONTH_A && x.day===d)
+                   || S4_PARSED_A.find(x => x.month==null && x.day===d);
         btn.textContent = d;
-
         if(match){
-          btn.onclick = ()=>{ selectHeaderRaw(match.raw); showResultsByHeader(match.raw); };
-          if(SELECTED_HDR_RAW && match.raw===SELECTED_HDR_RAW)
+          btn.onclick = ()=>{ SELECTED_HDR_RAW_A = match.raw; document.getElementById('dateHdrRawA').value = match.raw; renderCalendarA(); };
+          if(SELECTED_HDR_RAW_A && match.raw===SELECTED_HDR_RAW_A)
             btn.classList.add('bg-sjgold','text-black','font-semibold');
         }else{
           btn.classList.add('opacity-40','cursor-not-allowed');
         }
 
-        // 标记今天
         const t = new Date();
-        if(t.getFullYear()===CAL_YEAR && t.getMonth()+1===CAL_MONTH && t.getDate()===d)
+        if(t.getFullYear()===CAL_YEAR_A && t.getMonth()+1===CAL_MONTH_A && t.getDate()===d)
           btn.classList.add('ring-1','ring-sjgold/60');
 
         grid.appendChild(btn);
       }
 
-      const onlyDay = S4_PARSED.every(x => x.month==null || x.month===CAL_MONTH);
-      hint.textContent = onlyDay
-        ? '提示：表头多为“仅日”，此时月份切换只影响显示，不跨月匹配。'
-        : '如需其它月份，点击上方箭头切换后在日历中选择。';
+      const onlyDay = S4_PARSED_A.every(x => x.month==null || x.month===CAL_MONTH_A);
+      hint.textContent = onlyDay ? '提示：表头多为“仅日”，月份切换只影响显示。' : '选择月份后在日历中点具体日期。';
     }
 
-    function selectHeaderRaw(raw){
-      SELECTED_HDR_RAW = raw;
-      document.getElementById('dateHdrRaw').value = raw;
-      renderCalendar();
-    }
-
-    function autoPickTodayAndShow(){
+    function autoPickTodayA(){
       const t = new Date();
-      const raw = (S4_PARSED.find(x => x.month===CAL_MONTH && x.day===t.getDate())
-                || S4_PARSED.find(x => x.month==null && x.day===t.getDate()))?.raw;
-      if(raw){
-        selectHeaderRaw(raw);
-        showResultsByHeader(raw);
+      const raw = (S4_PARSED_A.find(x => x.month===CAL_MONTH_A && x.day===t.getDate())
+                || S4_PARSED_A.find(x => x.month==null && x.day===t.getDate()))?.raw;
+      if(raw){ SELECTED_HDR_RAW_A = raw; document.getElementById('dateHdrRawA').value = raw; renderCalendarA(); }
+    }
+
+    document.getElementById('calPrevA').addEventListener('click', ()=>{ CAL_MONTH_A--; if(CAL_MONTH_A===0){CAL_MONTH_A=12;CAL_YEAR_A--;} renderCalendarA(); });
+    document.getElementById('calNextA').addEventListener('click', ()=>{ CAL_MONTH_A++; if(CAL_MONTH_A===13){CAL_MONTH_A=1;CAL_YEAR_A++;} renderCalendarA(); });
+
+    // 按日期加载
+    document.getElementById('btnLoadA').addEventListener('click', loadByDate);
+    async function loadByDate(){
+      const hdr = document.getElementById('dateHdrRawA').value;
+      const cat = document.getElementById('catFilterA').value;
+      const msg = document.getElementById('msgA');
+      const list= document.getElementById('listA');
+      const pics= document.getElementById('picsA');
+      list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
+
+      if(!hdr){ msg.textContent='请选择日期'; return; }
+      const dateISO = toISOFromHeader(hdr);
+
+      // 优先用 /sheet4-day（更快）
+      let items = null, dateCellText = '';
+      try{
+        const r = await fetch(`${BACKEND}/sheet4-day?date=${encodeURIComponent(dateISO)}`);
+        const j = await r.json();
+        if(r.ok && j.ok){ items = j.items || []; dateCellText = j.dateCell || ''; }
+      }catch{}
+      // 兜底：自己在前端算（用全表缓存）
+      if(!items){
+        const values = window.__SHEET4_CACHE__;
+        if(!values || !values.length){ msg.textContent='表缓存未就绪，请刷新'; return; }
+        const header = values[0] || [];
+        // 列：找匹配这个 hdr 的列
+        const dateCandidates = new Set([
+          hdr, hdr.replace(/-/g,'/'), hdr.replace(/\//g,'-'), hdr.replace(/\./g,'/'),
+          hdr.replace(/月|日/g,'/').replace(/\/$/,'')
+        ]);
+        let colIndex = -1;
+        for(let c=1;c<header.length;c++){
+          const cell = String(header[c]||'').trim();
+          if(dateCandidates.has(cell)){ colIndex=c; break; }
+        }
+        if(colIndex===-1){ msg.textContent='未找到该日期列'; return; }
+        items = (values[0].slice(1)).map((h,idx)=>({project:h, value: (values[1+idx]||[])[colIndex] || ''}));
+      }
+
+      // 筛选类别（可选）
+      if(cat) items = items.filter(x => String(x.project).trim() === String(cat).trim());
+
+      // 展开每个格子的多条记录，并找图
+      let counter = 0;
+      for(const it of items){
+        const entries = parseCellEntries(it.value);
+        for(const e of entries){
+          // 左边文字
+          const div = document.createElement('div');
+          div.className = 'rounded-lg border border-sjgold/20 p-2 text-sm';
+          const car = e.car || '(无车型)';
+          const amount = e.amount ? ` · $${e.amount}` : '';
+          const note = e.note ? ` · ${e.note}` : '';
+          div.textContent = `${car}${amount}${note}  【${it.project}】`;
+          list.appendChild(div);
+
+          // 找图片（按命名规则）
+          const carInfo = splitCarLine(e.car);
+          const folder  = safeFolder(carInfo);
+          const prefix  = `${toSlug(carInfo.stock)}_${toSlug(carInfo.year)}_${toSlug(carInfo.make)}_${toSlug(carInfo.model)}`;
+          const catSlug = toSlug(it.project);
+          const key     = `${folder}/${prefix}__${catSlug}`; // public_id 前缀
+          try{
+            const r = await cloudSearch(key);
+            const arr = (r.resources || []).slice(0,4); // 每条最多取4张缩略展示
+            arr.forEach(img=>{
+              const el = document.createElement('img');
+              el.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_300,h_200,q_auto,f_auto/${img.public_id}.jpg`;
+              el.alt = img.public_id;
+              el.className = 'w-full h-24 object-cover rounded border border-sjgold/20';
+              pics.appendChild(el);
+            });
+          }catch(e){
+            // 没图就略过
+          }
+
+          counter++;
+        }
+      }
+      if(counter===0) msg.textContent='该日期 / 类别下暂无记录';
+    }
+
+    // ========== 按车型 ==========
+    async function loadCarsForB(){
+      try{
+        const r = await fetch(`${BACKEND}/sheet5`);
+        const { ok, values=[] } = await r.json();
+        if(!ok || !values.length) throw new Error('Sheet5 为空');
+        const [header, ...rows] = values;
+        const stockIdx = getCol(header, ['StockID','Stockid','Stock Id','Stock Id.']);
+        const yearIdx  = getCol(header, ['Year']);
+        const makeIdx  = getCol(header, ['Make','Brand']);
+        const modelIdx = getCol(header, ['Model']);
+
+        const sel = document.getElementById('carSelectB');
+        sel.innerHTML = '';
+        rows.forEach(row => {
+          const stock = row[stockIdx] || '';
+          const year  = row[yearIdx]  || '';
+          const make  = row[makeIdx]  || '';
+          const model = row[modelIdx] || '';
+          if(!stock) return;
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify({stock,year,make,model});
+          opt.textContent = `${stock} · ${year} ${make} ${model}`.trim();
+          sel.appendChild(opt);
+        });
+      }catch(e){
+        document.getElementById('carSelectB').innerHTML = '<option>加载失败</option>';
       }
     }
 
-    // 根据选中的表头原文，展示“单列列表”
-    function showResultsByHeader(rawHeader){
-      const header = S4_VALUES[0] || [];
-      const rows = S4_VALUES.slice(1); // 去掉第一行表头
-      const colIndex = header.findIndex(h => String(h).trim() === String(rawHeader).trim());
+    document.getElementById('btnLoadB').addEventListener('click', loadByCar);
+    async function loadByCar(){
+      const selVal = document.getElementById('carSelectB').value;
+      const msg = document.getElementById('msgB');
+      const list= document.getElementById('listB');
+      const pics= document.getElementById('picsB');
+      list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
+      if(!selVal){ msg.textContent='请选择车型'; return; }
+      const car = JSON.parse(selVal);
 
-      const container = document.getElementById('result');
-      container.innerHTML = '';
-
-      if(colIndex === -1){
-        container.innerHTML = '<div class="py-10 text-center opacity-70">未找到该日期列</div>';
-        return;
+      // 右侧：该车所有照片
+      try{
+        const folder  = safeFolder(car);
+        const prefix  = `${toSlug(car.stock)}_${toSlug(car.year)}_${toSlug(car.make)}_${toSlug(car.model)}`;
+        const key     = `${folder}/${prefix}`; // 取该车所有
+        const r = await cloudSearch(key);
+        (r.resources || []).forEach(img=>{
+          const el = document.createElement('img');
+          el.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_300,h_200,q_auto,f_auto/${img.public_id}.jpg`;
+          el.alt = img.public_id;
+          el.className = 'w-full h-24 object-cover rounded border border-sjgold/20';
+          pics.appendChild(el);
+        });
+      }catch(e){
+        msg.textContent = '图片加载失败';
       }
 
-      // 渲染所有费用项目（第一列为项目名）
-      rows.forEach((row, i) => {
-        const key = row[0] || '';
-        const val = row[colIndex] ?? '';
+      // 左侧：该车在 Sheet4 的所有记录（扫描整表）
+      try{
+        let values = window.__SHEET4_CACHE__;
+        if(!values){
+          const rr = await fetch(`${BACKEND}/sheet4`);
+          const jj = await rr.json();
+          if(jj.ok) values = jj.values;
+        }
+        if(!values || !values.length){ list.textContent='Sheet4 为空'; return; }
+        const header = values[0] || [];
+        // header[1..] 为日期列名
+        const dateHeaders = header.slice(1).map(h => String(h||'').trim());
+        const carKeyPrefix = `${car.stock} ${car.year} ${car.make} ${car.model}`.trim();
 
-        const div = document.createElement('div');
-        div.className = 'py-3 flex items-start gap-3';
-
-        const left = document.createElement('div');
-        left.className = 'shrink-0 min-w-[9rem] text-sm opacity-80';
-        left.textContent = key;
-
-        const right = document.createElement('div');
-        right.className = 'grow text-sm';
-        right.textContent = (String(val).trim() || '—');
-
-        div.appendChild(left);
-        div.appendChild(right);
-        container.appendChild(div);
-      });
+        for(let r=1;r<values.length;r++){
+          const project = (values[r][0]||'').trim(); // 行头=项目
+          for(let c=1;c<header.length;c++){
+            const cell = values[r][c] || '';
+            const entries = parseCellEntries(cell);
+            // 本车的
+            const mine = entries.filter(e => (e.car||'').trim().toLowerCase() === carKeyPrefix.toLowerCase());
+            for(const e of mine){
+              const row = document.createElement('div');
+              row.className = 'rounded-lg border border-sjgold/20 p-2 text-sm';
+              row.textContent = `${dateHeaders[c-1]} · ${project} · $${e.amount || ''} ${e.note ? '· '+e.note : ''}`;
+              list.appendChild(row);
+            }
+          }
+        }
+        if(!list.children.length) list.textContent = '该车暂无费用记录';
+      }catch(e){
+        list.textContent = '记录加载失败';
+      }
     }
+
+    // ========== 初始化入口 ==========
+    (async function init(){
+      try{
+        await loadDatesFromSheet4();   // 为模式A准备
+      }catch(e){}
+      try{
+        await loadCarsForB();          // 为模式B准备
+      }catch(e){}
+    })();
   </script>
 </body>
 </html>
