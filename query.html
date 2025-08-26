@@ -185,8 +185,8 @@
       const car = JSON.parse(selVal);
 
       // 👉 改成冒号+引号
-      const prefix  = `${car.stock}_${car.year}_${car.make}_${car.model}__`;
-      const expr = `public_id:"${prefix}*"`;
+      const prefix = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}__`;
+      const expr    = `public_id=${prefix}*`;
 
       try{
         const res = await cloudSearchByExpr(expr);
