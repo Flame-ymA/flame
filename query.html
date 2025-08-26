@@ -373,7 +373,7 @@
     const exprByContext = `context:date=${dateISO}`;
     // 2) 回退：按 public_id 片段匹配（明确使用 ASCII *）
     const star = '*';
-    const exprById = `public_id:${star}__${dateISO}__${star}`;
+    const exprById = `public_id=${star}__${dateISO}__${star}`;
 
     let res; // 只声明一次，避免重复声明错误
     try {
