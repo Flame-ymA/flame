@@ -9,13 +9,15 @@
     tailwind.config = {
       theme:{ extend:{
         colors:{ sjgold:'#FFD700' },
-        boxShadow:{ soft:'0 6px 24px rgba(255,215,0,0.08), 0 2px 8px rgba(0,0,0,0.25)' }
+        boxShadow: {
+          soft: '0 6px 24px rgba(255,215,0,0.08), 0 2px 8px rgba(0,0,0,0.25)'
+        }
       } }
     }
   </script>
 </head>
 <body class="min-h-screen bg-black text-sjgold/90 antialiased">
-  <!-- 顶部 -->
+  <!-- 顶部栏 -->
   <header class="sticky top-0 z-10 bg-black/70 backdrop-blur border-b border-sjgold/20">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
@@ -29,119 +31,116 @@
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-    <!-- 模式切换 -->
-    <div class="flex gap-3">
-      <button id="tabByDate" class="px-4 h-10 rounded-xl border border-sjgold/30 bg-sjgold text-black font-medium shadow-soft">按日期</button>
-      <button id="tabByCar"  class="px-4 h-10 rounded-xl border border-sjgold/30 hover:bg-zinc-900">按车型</button>
+    <!-- 顶部切换 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-3.5">
+        <div class="flex items-center gap-2">
+          <button id="tabByDate" class="px-4 h-10 rounded-xl border border-sjgold/30 bg-sjgold text-black font-medium shadow-soft">按日期</button>
+          <button id="tabByCar"  class="px-4 h-10 rounded-xl border border-sjgold/30 hover:bg-zinc-900">按车型</button>
+          <span class="text-xs opacity-70 ml-auto">小提示：点击图片可在新标签打开原图</span>
+        </div>
+      </div>
+      <!-- 搜索框（车型模式的小过滤） -->
+      <div class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-3.5">
+        <div class="flex items-center gap-2">
+          <span class="text-xs opacity-70">快速筛车</span>
+          <input id="quickCarFilter" placeholder="输入 Stock / Make / Model..."
+                 class="flex-1 rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none focus:ring-2 focus:ring-yellow-500 text-sm"/>
+        </div>
+      </div>
     </div>
 
-    <!-- ================= 按日期 ================= -->
+    <!-- ================= 模式 A：按日期 ================= -->
     <section id="panelDate" class="bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5 space-y-5">
-      <div class="flex items-end flex-wrap gap-3">
-        <div>
-          <label class="block text-sm opacity-80">选择日期</label>
-          <input id="dateHdrRawA" type="date"
-                 class="mt-1 bg-black/60 border border-sjgold/30 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-yellow-500"/>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm opacity-80">选择日期（来自 Sheet4 表头）</div>
+            <div class="flex items-center gap-2">
+              <button id="calPrevA" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">←</button>
+              <div id="calTitleA" class="text-sm font-semibold"></div>
+              <button id="calNextA" type="button" class="px-3 py-1.5 rounded-lg border border-sjgold/30 hover:bg-zinc-900">→</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-7 text-xs opacity-70 mb-1">
+            <div class="text-center py-1">Mon</div><div class="text-center py-1">Tue</div><div class="text-center py-1">Wed</div>
+            <div class="text-center py-1">Thu</div><div class="text-center py-1">Fri</div><div class="text-center py-1">Sat</div><div class="text-center py-1">Sun</div>
+          </div>
+          <div id="calGridA" class="grid grid-cols-7 gap-1"></div>
+          <input id="dateHdrRawA" type="hidden" />
+          <p id="calHintA" class="text-xs opacity-70 mt-1"></p>
         </div>
-        <div>
-          <label class="block text-sm opacity-80">费用类别（可选）</label>
-          <select id="catFilterA" class="mt-1 rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 text-sm outline-none">
-            <option value="">（全部）</option>
-            <option>税前买入金额</option>
-            <option>买断金额（lease）</option>
-            <option>车主证过户费用</option>
-            <option>转lease费用/买断费用</option>
-            <option>检修费用</option>
-            <option>加油费用</option>
-            <option>上牌费用</option>
-            <option>银行手续费</option>
-            <option>客户返佣</option>
-            <option>中介返佣</option>
-            <option>员工激励</option>
-          </select>
+        <div class="bg-black/40 rounded-xl ring-1 ring-sjgold/20 p-3">
+          <div class="space-y-3">
+            <label class="block text-sm">费用类别筛选</label>
+            <select id="catFilterA" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none">
+              <option value="">（全部）</option>
+              <option>税前买入金额</option>
+              <option>买断金额（lease）</option>
+              <option>车主证过户费用</option>
+              <option>转lease费用/买断费用</option>
+              <option>检修费用</option>
+              <option>加油费用</option>
+              <option>上牌费用</option>
+              <option>银行手续费</option>
+              <option>客户返佣</option>
+              <option>中介返佣</option>
+              <option>员工激励</option>
+            </select>
+            <button id="btnLoadA" class="w-full h-10 rounded-lg bg-sjgold text-black font-semibold hover:brightness-95">加载</button>
+            <div id="msgA" class="text-xs opacity-80"></div>
+          </div>
         </div>
-        <button id="btnLoadA"
-                class="ml-auto px-5 h-10 rounded-lg bg-sjgold text-black font-semibold hover:brightness-95">
-          加载
-        </button>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div>
-          <h2 class="text-sm mb-2 opacity-80">记录</h2>
+          <div class="text-sm mb-2 opacity-80">记录</div>
           <div id="listA" class="space-y-2"></div>
         </div>
         <div>
-          <h2 class="text-sm mb-2 opacity-80">图片</h2>
+          <div class="text-sm mb-2 opacity-80">图片</div>
           <div id="picsA" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2"></div>
         </div>
       </div>
-      <div id="msgA" class="text-xs opacity-75"></div>
     </section>
 
-    <!-- ================= 按车型 ================= -->
+    <!-- ================= 模式 B：按车型 ================= -->
     <section id="panelCar" class="hidden bg-neutral-950/70 rounded-2xl ring-1 ring-sjgold/20 p-5 space-y-5">
-      <div class="flex items-end gap-3">
-        <div class="flex-1">
-          <label class="block text-sm opacity-80">选择车型（来自 Sheet5）</label>
-          <select id="carSelectB" class="mt-1 w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 text-sm outline-none"></select>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm mb-1">选择车型（来自 Sheet5）</label>
+            <select id="carSelectB" class="w-full rounded-lg bg-black/60 border border-sjgold/30 px-3 py-2 outline-none"></select>
+          </div>
+          <div class="flex items-end gap-2">
+            <button id="btnLoadB" class="px-5 h-10 rounded-lg bg-sjgold text-black font-semibold hover:brightness-95">加载</button>
+            <span id="msgB" class="text-sm opacity-80"></span>
+          </div>
         </div>
-        <button id="btnLoadB"
-                class="px-5 h-10 rounded-lg bg-sjgold text-black font-semibold hover:brightness-95">
-          加载
-        </button>
+        <div class="bg-black/40 rounded-xl ring-1 ring-sjgold/20 p-3">
+          <div class="text-xs opacity-75">提示：右侧显示该车型所有照片；左侧列出该车在 Sheet4 的每条费用记录。</div>
+        </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div>
-          <h2 class="text-sm mb-2 opacity-80">该车费用记录</h2>
+          <div class="text-sm mb-2 opacity-80">该车费用记录（全部日期）</div>
           <div id="listB" class="space-y-2"></div>
         </div>
         <div>
-          <h2 class="text-sm mb-2 opacity-80">该车所有照片</h2>
+          <div class="text-sm mb-2 opacity-80">该车所有照片</div>
           <div id="picsB" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2"></div>
         </div>
       </div>
-      <div id="msgB" class="text-xs opacity-75"></div>
     </section>
   </main>
 
   <script>
-    /* ============ 配置 ============ */
     const BACKEND = 'https://flameauto-write.onrender.com';
     const CLOUDINARY_CLOUD_NAME = 'duwckagtg';
 
-    /* ============ 工具函数 ============ */
-    const toSlug = (s) => {
-      if (!s) return '';
-      let t = String(s).trim();
-      t = t.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-           .replace(/\s+/g, '-').replace(/[&:：、，,.;。\/\\]+/g, '-')
-           .toLowerCase();
-      t = t.replace(/[^a-z0-9\u4e00-\u9fa5_-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '');
-      return t || 'x';
-    };
-    const pad2 = n => String(n).padStart(2,'0');
-    const getCol = (headers, candidates) => {
-      const n = (s)=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-      const map = headers.map(h=>n(h));
-      for (const c of candidates) { const i = map.indexOf(n(c)); if (i !== -1) return i; }
-      return -1;
-    };
-
-    // 解析单元格：“车 | 金额 | 备注 || 车 | 金额 …”
-    function parseCellEntries(cell) {
-      const out = [];
-      if (!cell) return out;
-      String(cell).split('||').map(s=>s.trim()).filter(Boolean).forEach(one=>{
-        const p = one.split('|').map(x=>x.trim());
-        out.push({ car: p[0]||'', amount: p[1]||'', note: p[2]||'', raw: one });
-      });
-      return out;
-    }
-
-    // Cloudinary 代理搜索（新后端：expr）
-    async function cloudSearchByExpr(expr, limit = 100){
+    async function cloudSearchByExpr(expr, limit = 100) {
       const url = `${BACKEND}/cloudinary-search?expr=${encodeURIComponent(expr)}&limit=${limit}`;
       const r = await fetch(url);
       const j = await r.json();
@@ -149,242 +148,58 @@
       return j;
     }
 
-    /* ============ Tab ============ */
-    const tabByDate = document.getElementById('tabByDate');
-    const tabByCar  = document.getElementById('tabByCar');
-    const panelDate = document.getElementById('panelDate');
-    const panelCar  = document.getElementById('panelCar');
-    tabByDate.addEventListener('click', ()=>{ panelDate.classList.remove('hidden'); panelCar.classList.add('hidden'); });
-    tabByCar .addEventListener('click', ()=>{ panelCar .classList.remove('hidden'); panelDate.classList.add('hidden'); });
-
-    /* ============ 按日期 ============ */
-    document.getElementById('btnLoadA').addEventListener('click', loadByDate);
-
+    /* ---- 日期模式 loadByDate 修改 ---- */
     async function loadByDate(){
-      const hdr = document.getElementById('dateHdrRawA').value; // YYYY-MM-DD
-      const cat = document.getElementById('catFilterA').value;
-      const list = document.getElementById('listA');
-      const pics = document.getElementById('picsA');
-      const msg  = document.getElementById('msgA');
+      const hdr = document.getElementById('dateHdrRawA').value;
+      const pics= document.getElementById('picsA');
+      const list= document.getElementById('listA');
+      const msg = document.getElementById('msgA');
       list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
+      if(!hdr){ msg.textContent='请选择日期'; return; }
 
-      if (!hdr) { msg.textContent = '请选择日期'; return; }
+      const dateISO = hdr; // 你已有转换函数可用
+      // 👉 改成冒号+引号的 Cloudinary 表达式
+      const exprForDate = `public_id:"*__${dateISO}__*"`;  
 
-      // 骨架加载
-      pics.innerHTML = '<div class="col-span-full grid grid-cols-4 gap-2">'
-        + Array.from({length:8}).map(()=>'<div class="h-24 rounded-lg bg-zinc-900 animate-pulse"></div>').join('')
-        + '</div>';
-
-      // 1) 取当日各项目文字记录
-      let items = null;
       try{
-        const r = await fetch(`${BACKEND}/sheet4-day?date=${encodeURIComponent(hdr)}`);
-        const j = await r.json();
-        if (r.ok && j.ok) items = j.items || [];
-      }catch{}
-
-      // 若后端没开 /sheet4-day，则兜底从 /sheet4 前端解析
-      if (!items) {
-        try{
-          const r = await fetch(`${BACKEND}/sheet4`);
-          const j = await r.json();
-          const values = j.values || [];
-          if (!values.length) throw new Error('Sheet4 为空');
-
-          const header = values[0] || [];
-          // 表头里允许 “9/1、9月1日、09-01…”：构造候选
-          const d = new Date(hdr);
-          const m = d.getMonth()+1, day = d.getDate();
-          const candidates = new Set([
-            `${m}/${day}`, `${pad2(m)}/${pad2(day)}`,
-            `${m}-${day}`, `${pad2(m)}-${pad2(day)}`,
-            `${m}.${day}`, `${pad2(m)}.${pad2(day)}`,
-            `${m}月${day}日`
-          ]);
-
-          let colIndex = -1;
-          for (let c=1;c<header.length;c++) {
-            const cell = String(header[c]||'').trim();
-            if (candidates.has(cell)) { colIndex = c; break; }
-          }
-          if (colIndex === -1) throw new Error('未找到该日期列');
-
-          items = [];
-          for (let rIdx=1;rIdx<values.length;rIdx++) {
-            items.push({ project: values[rIdx]?.[0] || '', value: values[rIdx]?.[colIndex] || '' });
-          }
-        }catch(e){
-          msg.textContent = '读取日期记录失败';
-        }
-      }
-
-      // 类别筛选
-      if (cat) items = (items||[]).filter(x => String(x.project).trim() === String(cat).trim());
-
-      // 2) 左侧渲染文字
-      let rec = 0;
-      for (const it of (items||[])) {
-        for (const e of parseCellEntries(it.value)) {
-          const div = document.createElement('div');
-          div.className = 'rounded-lg border border-sjgold/20 p-2 text-sm bg-black/40';
-          const amount = e.amount ? ` · $${e.amount}` : '';
-          const note   = e.note   ? ` · ${e.note}` : '';
-          div.innerHTML = `
-            <span class="px-2 py-0.5 mr-2 rounded bg-sjgold/15 text-[11px] ring-1 ring-sjgold/30">${it.project}</span>
-            <span class="opacity-90">${e.car || '(无车型)'}${amount}${note}</span>
-          `;
-          list.appendChild(div);
-          rec++;
-        }
-      }
-      if (!rec) list.innerHTML = '<div class="text-xs opacity-70">该日期 / 类别下暂无记录</div>';
-
-      // 3) 右侧按“日期”查图片：public_id:*__YYYY-MM-DD__*
-      try{
-        const expr = `public_id="*__${hdr}__*"`;
-        const res = await cloudSearchByExpr(expr, 200);
+        const res = await cloudSearchByExpr(exprForDate);
         pics.innerHTML = '';
         (res.resources || []).forEach(img=>{
-          const a = document.createElement('a');
-          a.href = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
-          a.target = '_blank'; a.rel = 'noopener';
+          const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
           const el = document.createElement('img');
-          el.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_600,h_420,q_auto,f_auto/${img.public_id}.jpg`;
+          el.src = url;
           el.alt = img.public_id;
-          el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
-          a.appendChild(el);
-          pics.appendChild(a);
+          el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20';
+          pics.appendChild(el);
         });
-        if (!pics.children.length) pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
-      }catch(e){
-        pics.innerHTML = '<div class="text-xs opacity-70">图片加载失败</div>';
-      }
+      }catch(e){ msg.textContent='图片加载失败'; }
     }
 
-    /* ============ 按车型 ============ */
-    // 载入车型列表（Sheet5）
-    (async function loadCarsForB(){
-      try{
-        const r = await fetch(`${BACKEND}/sheet5`);
-        const { ok, values=[] } = await r.json();
-        if (!ok || !values.length) throw new Error('Sheet5 为空');
-
-        const [header, ...rows] = values;
-        const stockIdx = getCol(header, ['StockID','Stockid','Stock Id','Stock Id.']);
-        const yearIdx  = getCol(header, ['Year']);
-        const makeIdx  = getCol(header, ['Make','Brand']);
-        const modelIdx = getCol(header, ['Model']);
-
-        const sel = document.getElementById('carSelectB');
-        rows.forEach(row=>{
-          const stock = row[stockIdx] || '';
-          if (!stock) return;
-          const year  = row[yearIdx]  || '';
-          const make  = row[makeIdx]  || '';
-          const model = row[modelIdx] || '';
-          const label = `${stock} ${year} ${make} ${model}`.trim();
-          const opt = document.createElement('option');
-          opt.value = JSON.stringify({stock,year,make,model,label});
-          opt.textContent = `${stock} · ${year} ${make} ${model}`;
-          sel.appendChild(opt);
-        });
-      }catch{
-        document.getElementById('carSelectB').innerHTML = '<option>加载失败</option>';
-      }
-    })();
-
-    document.getElementById('btnLoadB').addEventListener('click', loadByCar);
-
+    /* ---- 车型模式 loadByCar 修改 ---- */
     async function loadByCar(){
-      const val = document.getElementById('carSelectB').value;
-      const list = document.getElementById('listB');
-      const pics = document.getElementById('picsB');
-      const msg  = document.getElementById('msgB');
-      list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
-      if (!val) { msg.textContent = '请选择车型'; return; }
-      const car = JSON.parse(val);
+      const selVal = document.getElementById('carSelectB').value;
+      const pics= document.getElementById('picsB');
+      const msg = document.getElementById('msgB');
+      pics.innerHTML=''; msg.textContent='';
+      if(!selVal){ msg.textContent='请选择车型'; return; }
+      const car = JSON.parse(selVal);
 
-      // 右：按前缀 public_id: <stock>_<year>_<make>_<model>__*
+      // 👉 改成冒号+引号
+      const prefix  = `${car.stock}_${car.year}_${car.make}_${car.model}__`;
+      const expr = `public_id:"${prefix}*"`;
+
       try{
-        const prefix = `${toSlug(car.stock)}_${toSlug(car.year)}_${toSlug(car.make)}_${toSlug(car.model)}__`;
-        const expr = `public_id="${prefix}*"`;
-        // 骨架
-        pics.innerHTML = '<div class="col-span-full grid grid-cols-4 gap-2">'
-          + Array.from({length:8}).map(()=>'<div class="h-24 rounded-lg bg-zinc-900 animate-pulse"></div>').join('')
-          + '</div>';
-        const res = await cloudSearchByExpr(expr, 300);
-        pics.innerHTML = '';
+        const res = await cloudSearchByExpr(expr);
         (res.resources || []).forEach(img=>{
-          const a = document.createElement('a');
-          a.href = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
-          a.target = '_blank'; a.rel = 'noopener';
+          const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
           const el = document.createElement('img');
-          el.src = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_600,h_420,q_auto,f_auto/${img.public_id}.jpg`;
+          el.src = url;
           el.alt = img.public_id;
-          el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
-          a.appendChild(el);
-          pics.appendChild(a);
+          el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20';
+          pics.appendChild(el);
         });
-        if (!pics.children.length) pics.innerHTML = '<div class="text-xs opacity-70">该车暂无照片</div>';
-      }catch{
-        pics.innerHTML = '<div class="text-xs opacity-70">图片加载失败</div>';
-      }
-
-      // 左：从 Sheet4 扫描该车的所有记录
-      try{
-        let values;
-        try {
-          const rr = await fetch(`${BACKEND}/sheet4`);
-          const jj = await rr.json();
-          values = jj.values || [];
-        } catch {}
-        if (!values || !values.length) { list.textContent = 'Sheet4 为空'; return; }
-
-        const header = values[0] || [];
-        const dateHeaders = header.slice(1).map(h => String(h||'').trim());
-        const carKey = `${car.stock} ${car.year} ${car.make} ${car.model}`.trim().toLowerCase();
-
-        // 骨架
-        list.innerHTML = Array.from({length:4}).map(()=>(
-          '<div class="rounded-lg border border-sjgold/10 p-2 bg-zinc-900 animate-pulse h-10"></div>'
-        )).join('');
-
-        let rendered = 0;
-        const frag = document.createDocumentFragment();
-        for (let r=1; r<values.length; r++) {
-          const project = (values[r][0]||'').trim();
-          for (let c=1; c<header.length; c++) {
-            const entries = parseCellEntries(values[r][c] || '');
-            const mine = entries.filter(e => (e.car||'').trim().toLowerCase() === carKey);
-            for (const e of mine) {
-              const row = document.createElement('div');
-              row.className = 'rounded-lg border border-sjgold/20 p-2 text-sm bg-black/40';
-              row.innerHTML = `
-                <span class="px-2 py-0.5 mr-2 rounded bg-sjgold/15 text-[11px] ring-1 ring-sjgold/30">${dateHeaders[c-1]}</span>
-                <span class="px-2 py-0.5 mr-2 rounded bg-sjgold/15 text-[11px] ring-1 ring-sjgold/30">${project}</span>
-                <span class="opacity-90">$${e.amount || ''}</span>
-                ${e.note ? `<span class="opacity-70"> · ${e.note}</span>` : ''}
-              `;
-              frag.appendChild(row);
-              rendered++;
-            }
-          }
-        }
-        list.innerHTML = '';
-        list.appendChild(frag);
-        if (!rendered) list.textContent = '该车暂无费用记录';
-      }catch{
-        list.textContent = '记录加载失败';
-      }
+      }catch(e){ msg.textContent='图片加载失败'; }
     }
-
-    /* ============ 默认：给日期控件一个今天 ============ */
-    (function setToday(){
-      const t = new Date();
-      const val = `${t.getFullYear()}-${pad2(t.getMonth()+1)}-${pad2(t.getDate())}`;
-      const input = document.getElementById('dateHdrRawA');
-      if (!input.value) input.value = val;
-    })();
   </script>
 </body>
 </html>
