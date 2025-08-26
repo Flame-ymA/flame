@@ -405,7 +405,9 @@
 
       // 右侧：按日期搜图（✅ 使用引号包裹带 * 的值）
       try{
-        const exprForDate = `public_id="*__${dateISO}__*"`;
+       // 原来：const exprForDate = `public_id="*__${dateISO}__*"`
+        const exprForDate = `context.date="${dateISO}"`;   // ✅ 用 context 搜索最稳
+        const res = await cloudSearchByExpr(exprForDate, 200)
         const res = await cloudSearchByExpr(exprForDate);
         pics.innerHTML = '';
         (res.resources || []).forEach(img=>{
