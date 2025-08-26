@@ -210,12 +210,13 @@
 
     // Cloudinary 查询（推荐：后端将 expr 透传给 Cloudinary Search API）
     // 例：expr = "public_id=*__2025-09-01__*"
-    async function cloudSearchByExpr(expr){
-      const url = `${BACKEND}/cloudinary-search?expr=${encodeURIComponent(expr)}`;
-      const r = await fetch(url);
-      if(!r.ok) throw new Error(`Cloudinary 查询失败：HTTP ${r.status}`);
-      return r.json(); // {resources: [{public_id, secure_url, ...}]}
-    }
+  async function cloudSearchByExpr(expr, limit = 100) {
+  const url = `${BACKEND}/cloudinary-search?expr=${encodeURIComponent(expr)}&limit=${limit}`;
+  const r = await fetch(url);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+  return j;
+}
 
     // 如果你的后端是旧版（param 叫 stock 或 prefix），可用这一行替换：
     // async function cloudSearchByExpr(expr){ const r = await fetch(`${BACKEND}/cloudinary-search?stock=${encodeURIComponent(expr)}`); ... }
