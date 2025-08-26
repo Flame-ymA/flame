@@ -302,7 +302,6 @@
 
     document.getElementById('calPrevA').addEventListener('click', ()=>{ CAL_MONTH_A--; if(CAL_MONTH_A===0){CAL_MONTH_A=12;CAL_YEAR_A--;} renderCalendarA(); });
     document.getElementById('calNextA').addEventListener('click', ()=>{ CAL_MONTH_A++; if(CAL_MONTH_A===13){CAL_MONTH_A=1;CAL_YEAR_A++;} renderCalendarA(); });
-<script>
   /* ==================== 按日期加载 ==================== */
   document.getElementById('btnLoadA').addEventListener('click', loadByDate);
 
@@ -402,7 +401,7 @@
       pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
     }
   }
-</script>
+
     /* ==================== 车型模式 ==================== */
     const quickCarFilter = document.getElementById('quickCarFilter');
 
