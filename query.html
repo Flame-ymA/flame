@@ -186,7 +186,7 @@
 
       // 👉 改成冒号+引号
       const prefix = `${toSlug(stock)}_${toSlug(year)}_${toSlug(make)}_${toSlug(model)}__`;
-      const expr    = `public_id=${prefix}*`;
+      const expr = `public_id=${prefix}*`;
 
       try{
         const res = await cloudSearchByExpr(expr);
