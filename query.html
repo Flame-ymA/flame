@@ -159,7 +159,7 @@
 
       const dateISO = hdr; // 你已有转换函数可用
       // 👉 改成冒号+引号的 Cloudinary 表达式
-      const exprForDate = `public_id:"*__${dateISO}__*"`;  
+      const exprForDate = `public_id:*__${dateISO}__*`;
 
       try{
         const res = await cloudSearchByExpr(exprForDate);
