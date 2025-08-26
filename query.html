@@ -241,7 +241,7 @@
 
       // 3) 右侧按“日期”查图片：public_id:*__YYYY-MM-DD__*
       try{
-        const expr = `public_id:*__${hdr}__*`;
+        const expr = `public_id="*__${hdr}__*"`;
         const res = await cloudSearchByExpr(expr, 200);
         pics.innerHTML = '';
         (res.resources || []).forEach(img=>{
@@ -307,7 +307,7 @@
       // 右：按前缀 public_id: <stock>_<year>_<make>_<model>__*
       try{
         const prefix = `${toSlug(car.stock)}_${toSlug(car.year)}_${toSlug(car.make)}_${toSlug(car.model)}__`;
-        const expr = `public_id:${prefix}*`;
+        const expr = `public_id="${prefix}*"`;
         // 骨架
         pics.innerHTML = '<div class="col-span-full grid grid-cols-4 gap-2">'
           + Array.from({length:8}).map(()=>'<div class="h-24 rounded-lg bg-zinc-900 animate-pulse"></div>').join('')
