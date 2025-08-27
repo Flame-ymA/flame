@@ -354,9 +354,6 @@ function sanitizeExpr(expr) {
       list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
       if (!hdr) { msg.textContent = '请选择日期'; return; }
 
-      // ✅ 只声明一次
-      const dateISO = toISOFromHeader(hdr);
-
       // 骨架
       pics.innerHTML = '<div class="col-span-full grid grid-cols-4 gap-2">'
         + Array.from({length:8}).map(()=>'<div class="h-24 rounded-lg bg-zinc-900 animate-pulse"></div>').join('')
@@ -412,6 +409,9 @@ function sanitizeExpr(expr) {
 
       // === 右侧图片（只按“包含日期”搜索） ===
      // === 右侧图片（只按日期，让后端拼表达式） ===
+        // ✅ 只声明一次
+      const dateISO = toISOFromHeader(hdr);
+      dateISO = sanitizeAscii(dateISO);   
 let res;
 try {
   res = await cloudSearchByDate(dateISO, 200);
