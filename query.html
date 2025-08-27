@@ -195,15 +195,23 @@
       return { stock: seg[0]||'', year: seg[1]||'', make: seg[2]||'', model: seg.slice(3).join(' ')||'' };
     }
 
-    // 后端代理 Cloudinary Search（expr 透传）
-   // 统一用这个
-// 仅留一个：按日期包含搜索（走新接口）
-async function cloudSearchByDate(dateISO, limit = 200) {
-  const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}&limit=${limit}`);
-  const j = await r.json();
-  if (!r.ok || j.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
-  return j; // { ok:true, resources:[...] }
-}
+    /* -------- Cloudinary 查询封装 -------- */
+
+    // 按“包含日期”搜索（后端新接口）
+    async function cloudSearchByDate(dateISO, limit = 200) {
+      const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}&limit=${limit}`);
+      const j = await r.json();
+      if (!r.ok || j.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
+      return j; // { ok:true, resources:[...] }
+    }
+
+    // 按表达式搜索（给“按车型”用，例如 public_id:prefix*）
+    async function cloudSearchByExpr(expr, limit = 200) {
+      const r = await fetch(`${BACKEND}/cloudinary-search?expr=${encodeURIComponent(expr)}&limit=${limit}`);
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+      return j; // { resources:[...] }
+    }
 
     /* ==================== Tab 切换 ==================== */
     const tabByDate = document.getElementById('tabByDate');
@@ -254,8 +262,7 @@ async function cloudSearchByDate(dateISO, limit = 200) {
       CAL_MONTH_A = months.length ? (months.includes(today.getMonth()+1) ? (today.getMonth()+1) : months[0]) : (today.getMonth()+1);
       renderCalendarA();
       autoPickTodayA();
-      // 缓存整表供车型模式使用
-      window.__SHEET4_CACHE__ = values;
+      window.__SHEET4_CACHE__ = values; // 缓存整表供车型模式使用
     }
 
     function renderCalendarA(){
@@ -304,112 +311,102 @@ async function cloudSearchByDate(dateISO, limit = 200) {
     document.getElementById('calPrevA').addEventListener('click', ()=>{ CAL_MONTH_A--; if(CAL_MONTH_A===0){CAL_MONTH_A=12;CAL_YEAR_A--;} renderCalendarA(); });
     document.getElementById('calNextA').addEventListener('click', ()=>{ CAL_MONTH_A++; if(CAL_MONTH_A===13){CAL_MONTH_A=1;CAL_YEAR_A++;} renderCalendarA(); });
 
-// ==================== 按日期加载 ====================
-document.getElementById('btnLoadA').addEventListener('click', loadByDate);
+    // ==================== 按日期加载 ====================
+    document.getElementById('btnLoadA').addEventListener('click', loadByDate);
 
-async function loadByDate() {
-  const hdr = document.getElementById('dateHdrRawA').value;
-  const cat = document.getElementById('catFilterA').value;
-  const msg = document.getElementById('msgA');
-  const list= document.getElementById('listA');
-  const pics= document.getElementById('picsA');
+    async function loadByDate() {
+      const hdr = document.getElementById('dateHdrRawA').value;
+      const cat = document.getElementById('catFilterA').value;
+      const msg = document.getElementById('msgA');
+      const list= document.getElementById('listA');
+      const pics= document.getElementById('picsA');
 
-  list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
-  if (!hdr) { msg.textContent = '请选择日期'; return; }
+      list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
+      if (!hdr) { msg.textContent = '请选择日期'; return; }
 
-  const dateISO = toISOFromHeader(hdr);
+      // ✅ 只声明一次
+      const dateISO = toISOFromHeader(hdr);
 
-  // 骨架
-  pics.innerHTML = '<div class="col-span-full grid grid-cols-4 gap-2">'
-    + Array.from({length:8}).map(()=>'<div class="h-24 rounded-lg bg-zinc-900 animate-pulse"></div>').join('')
-    + '</div>';
+      // 骨架
+      pics.innerHTML = '<div class="col-span-full grid grid-cols-4 gap-2">'
+        + Array.from({length:8}).map(()=>'<div class="h-24 rounded-lg bg-zinc-900 animate-pulse"></div>').join('')
+        + '</div>';
 
-  // 先拉当天各项目文本（可选）
-  let items = null;
-  try {
-    const r = await fetch(`${BACKEND}/sheet4-day?date=${encodeURIComponent(dateISO)}`);
-    const j = await r.json();
-    if (r.ok && j.ok) items = j.items || [];
-  } catch {}
+      // 先拉当天各项目文本（可选）
+      let items = null;
+      try {
+        const r = await fetch(`${BACKEND}/sheet4-day?date=${encodeURIComponent(dateISO)}`);
+        const j = await r.json();
+        if (r.ok && j.ok) items = j.items || [];
+      } catch {}
 
-  if (!items) {
-    const values = window.__SHEET4_CACHE__;
-    if (!values || !values.length) { msg.textContent = '表缓存未就绪，请刷新'; pics.innerHTML=''; return; }
-    const header = values[0] || [];
-    let colIndex = -1;
-    for (let c = 1; c < header.length; c++) {
-      const cell = String(header[c]||'').trim();
-      const t  = hdr.replace(/\./g,'/').replace(/-/g,'/').replace(/月|日/g,'/').replace(/\/$/,'');
-      if (cell === hdr || cell === t) { colIndex = c; break; }
+      if (!items) {
+        const values = window.__SHEET4_CACHE__;
+        if (!values || !values.length) { msg.textContent = '表缓存未就绪，请刷新'; pics.innerHTML=''; return; }
+        const header = values[0] || [];
+        let colIndex = -1;
+        for (let c = 1; c < header.length; c++) {
+          const cell = String(header[c]||'').trim();
+          const t  = hdr.replace(/\./g,'/').replace(/-/g,'/').replace(/月|日/g,'/').replace(/\/$/,'');
+          if (cell === hdr || cell === t) { colIndex = c; break; }
+        }
+        if (colIndex === -1) { msg.textContent='未找到该日期列'; pics.innerHTML=''; return; }
+        items = [];
+        for (let r = 1; r < values.length; r++) {
+          items.push({ project: values[r]?.[0] || '', value: values[r]?.[colIndex] || '' });
+        }
+      }
+
+      // 可选：按类别过滤
+      if (cat) items = items.filter(x => String(x.project).trim() === String(cat).trim());
+
+      // 左侧记录
+      let counter = 0;
+      for (const it of items) {
+        const entries = parseCellEntries(it.value);
+        for (const e of entries) {
+          const div = document.createElement('div');
+          div.className = 'rounded-lg border border-sjgold/20 p-2 text-sm bg-black/40';
+          const car = e.car || '(无车型)';
+          const amount = e.amount ? ` · $${e.amount}` : '';
+          const note = e.note ? ` · ${e.note}` : '';
+          div.innerHTML = `<span class="inline-flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded bg-sjgold/15 text-[11px] ring-1 ring-sjgold/30">${it.project}</span>
+            <span class="opacity-90">${car}${amount}${note}</span>
+          </span>`;
+          list.appendChild(div);
+          counter++;
+        }
+      }
+      if (!counter) { msg.textContent = '该日期 / 类别下暂无记录'; pics.innerHTML=''; return; }
+
+      // === 右侧图片（只按“包含日期”搜索） ===
+      let res;
+      try {
+        res = await cloudSearchByDate(dateISO, 200);
+      } catch (e) {
+        pics.innerHTML = `<div class="text-xs opacity-70">图片加载失败：${e.message || e}</div>`;
+        return;
+      }
+
+      pics.innerHTML = '';
+      const arr = res.resources || [];
+      if (!arr.length) {
+        pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
+      } else {
+        for (const img of arr) {
+          const urlThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
+          const urlRaw   = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
+          const a = document.createElement('a');
+          a.href = urlRaw; a.target = '_blank'; a.rel = 'noopener';
+          const el = document.createElement('img');
+          el.src = urlThumb; el.alt = img.public_id;
+          el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
+          a.appendChild(el);
+          pics.appendChild(a);
+        }
+      }
     }
-    if (colIndex === -1) { msg.textContent='未找到该日期列'; pics.innerHTML=''; return; }
-    items = [];
-    for (let r = 1; r < values.length; r++) {
-      items.push({ project: values[r]?.[0] || '', value: values[r]?.[colIndex] || '' });
-    }
-  }
-
-  // 可选：按类别过滤
-  if (cat) items = items.filter(x => String(x.project).trim() === String(cat).trim());
-
-  // 左侧记录
-  let counter = 0;
-  for (const it of items) {
-    const entries = parseCellEntries(it.value);
-    for (const e of entries) {
-      const div = document.createElement('div');
-      div.className = 'rounded-lg border border-sjgold/20 p-2 text-sm bg-black/40';
-      const car = e.car || '(无车型)';
-      const amount = e.amount ? ` · $${e.amount}` : '';
-      const note = e.note ? ` · ${e.note}` : '';
-      div.innerHTML = `<span class="inline-flex items-center gap-2">
-        <span class="px-2 py-0.5 rounded bg-sjgold/15 text-[11px] ring-1 ring-sjgold/30">${it.project}</span>
-        <span class="opacity-90">${car}${amount}${note}</span>
-      </span>`;
-      list.appendChild(div);
-      counter++;
-    }
-  }
-  if (!counter) { msg.textContent = '该日期 / 类别下暂无记录'; pics.innerHTML=''; return; }
-
-// === 右侧图片（只按“包含日期”搜索） ===
-// 这行保留你已有的 dateISO 计算：
-const dateISO = toISOFromHeader(hdr);
-
-// 直接调用新的后端包含查询：/cloudinary-by-date?date=YYYY-MM-DD
-let res; // 注意：只声明一次，避免重复声明错误
-try {
-  const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}`);
-  res = await r.json();
-  // 调试输出，方便你确认到底返回了什么
-  console.log('[by-date]', dateISO, res);
-  if (!r.ok || res.ok === false) {
-    throw new Error(res?.error || `HTTP ${r.status}`);
-  }
-} catch (e) {
-  pics.innerHTML = `<div class="text-xs opacity-70">图片加载失败：${e.message || e}</div>`;
-  return;
-}
-
-pics.innerHTML = '';
-const arr = res.resources || [];
-if (!arr.length) {
-  pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
-} else {
-  for (const img of arr) {
-    const urlThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
-    const urlRaw   = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
-    const a = document.createElement('a');
-    a.href = urlRaw; a.target = '_blank'; a.rel = 'noopener';
-    const el = document.createElement('img');
-    el.src = urlThumb; el.alt = img.public_id;
-    el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
-    a.appendChild(el);
-    pics.appendChild(a);
-  }
-}
-}
-
 
     /* ==================== 车型模式 ==================== */
     const quickCarFilter = document.getElementById('quickCarFilter');
@@ -468,7 +465,7 @@ if (!arr.length) {
       // 右：该车所有照片（以 “Stock_Year_Make_Model__” 作为前缀）
       try{
         const prefix  = `${toSlug(car.stock)}_${toSlug(car.year)}_${toSlug(car.make)}_${toSlug(car.model)}__`;
-        const expr = `public_id:${prefix}*`;   // ✅ 正确语法
+        const expr = `public_id:${prefix}*`;  // Cloudinary 语法
         const res = await cloudSearchByExpr(expr, 200);
 
         pics.innerHTML = '';
