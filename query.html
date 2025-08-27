@@ -410,7 +410,7 @@ function sanitizeExpr(expr) {
       // === 右侧图片（只按“包含日期”搜索） ===
      // === 右侧图片（只按日期，让后端拼表达式） ===
         // ✅ 只声明一次
-      const dateISO = toISOFromHeader(hdr);
+      let dateISO = toISOFromHeader(hdr);
       dateISO = sanitizeAscii(dateISO);   
 let res;
 try {
