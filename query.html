@@ -196,7 +196,12 @@
     }
 
     /* -------- Cloudinary 查询封装 -------- */
-
+async function cloudSearchByDate(dateISO, limit = 200) {
+  const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}&limit=${limit}`);
+  const j = await r.json();
+  if (!r.ok || j.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
+  return j; // { ok:true, resources:[...] }
+}
     // 按“包含日期”搜索（后端新接口）
     async function cloudSearchByDate(dateISO, limit = 200) {
       const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}&limit=${limit}`);
@@ -381,31 +386,33 @@
       if (!counter) { msg.textContent = '该日期 / 类别下暂无记录'; pics.innerHTML=''; return; }
 
       // === 右侧图片（只按“包含日期”搜索） ===
-      let res;
-      try {
-        res = await cloudSearchByDate(dateISO, 200);
-      } catch (e) {
-        pics.innerHTML = `<div class="text-xs opacity-70">图片加载失败：${e.message || e}</div>`;
-        return;
-      }
+     // === 右侧图片（只按日期，让后端拼表达式） ===
+let res;
+try {
+  res = await cloudSearchByDate(dateISO, 200);
+  console.log('[by-date]', dateISO, res);
+} catch (e) {
+  pics.innerHTML = `<div class="text-xs opacity-70">图片加载失败：${e.message || e}</div>`;
+  return;
+}
 
-      pics.innerHTML = '';
-      const arr = res.resources || [];
-      if (!arr.length) {
-        pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
-      } else {
-        for (const img of arr) {
-          const urlThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
-          const urlRaw   = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
-          const a = document.createElement('a');
-          a.href = urlRaw; a.target = '_blank'; a.rel = 'noopener';
-          const el = document.createElement('img');
-          el.src = urlThumb; el.alt = img.public_id;
-          el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
-          a.appendChild(el);
-          pics.appendChild(a);
-        }
-      }
+pics.innerHTML = '';
+const arr = res.resources || [];
+if (!arr.length) {
+  pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
+} else {
+  for (const img of arr) {
+    const urlThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
+    const urlRaw   = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
+    const a = document.createElement('a');
+    a.href = urlRaw; a.target = '_blank'; a.rel = 'noopener';
+    const el = document.createElement('img');
+    el.src = urlThumb; el.alt = img.public_id;
+    el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
+    a.appendChild(el);
+    pics.appendChild(a);
+  }
+}
     }
 
     /* ==================== 车型模式 ==================== */
