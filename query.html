@@ -203,9 +203,7 @@ async function cloudSearchByDate(dateISO, limit = 200) {
   return j; // { ok:true, resources:[...] }
 }
 
-// loadByDate() 里显示图片：
-const res = await cloudSearchByDate(dateISO, 200);
-const arr = res.resources || [];
+
 
     // 按表达式搜索（给“按车型”用，例如 public_id:prefix*）
     async function cloudSearchByExpr(expr, limit = 200) {
@@ -322,6 +320,8 @@ const arr = res.resources || [];
       const msg = document.getElementById('msgA');
       const list= document.getElementById('listA');
       const pics= document.getElementById('picsA');
+      const res = await cloudSearchByDate(dateISO, 200);
+      const arr = res.resources || [];
 
       list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
       if (!hdr) { msg.textContent = '请选择日期'; return; }
