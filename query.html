@@ -202,13 +202,10 @@ async function cloudSearchByDate(dateISO, limit = 200) {
   if (!r.ok || j.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
   return j; // { ok:true, resources:[...] }
 }
-    // 按“包含日期”搜索（后端新接口）
-    async function cloudSearchByDate(dateISO, limit = 200) {
-      const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}&limit=${limit}`);
-      const j = await r.json();
-      if (!r.ok || j.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
-      return j; // { ok:true, resources:[...] }
-    }
+
+// loadByDate() 里显示图片：
+const res = await cloudSearchByDate(dateISO, 200);
+const arr = res.resources || [];
 
     // 按表达式搜索（给“按车型”用，例如 public_id:prefix*）
     async function cloudSearchByExpr(expr, limit = 200) {
