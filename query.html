@@ -217,7 +217,27 @@ async function cloudSearchByDate(dateISO, limit = 200) {
       if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`);
       return j; // { resources:[...] }
     }
+// —— 强制清洗：把任何非 ASCII、零宽字符、全角符号清理掉 —— //
+function sanitizeAscii(s) {
+  return String(s || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')  // 零宽
+    .replace(/[\u2013\u2014]/g, '-')        // –— → -
+    .replace(/\uFF0D/g, '-')                // 全角减号 → -
+    .replace(/\uFF0A/g, '*')                // 全角＊ → *
+    .replace(/[“”]/g, '"').replace(/[‘’]/g, "'") // 中文引号 → 英文
+    .replace(/[^\x20-\x7E]/g, '')           // 非 ASCII 全移除
+    .trim();
+}
 
+// 清洗 Cloudinary 表达式：修正 public_id= → public_id:
+function sanitizeExpr(expr) {
+  let e = sanitizeAscii(expr);
+  e = e
+    .replace(/^public_id\s*=\s*/i, 'public_id:')
+    .replace(/^public_id:\s*"([^"]*)"$/i, 'public_id:$1')
+    .replace(/\s+/g, ' ');
+  return e;
+}
     /* ==================== Tab 切换 ==================== */
     const tabByDate = document.getElementById('tabByDate');
     const tabByCar  = document.getElementById('tabByCar');
