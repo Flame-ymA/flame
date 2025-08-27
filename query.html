@@ -196,8 +196,12 @@
     }
 
     /* -------- Cloudinary 查询封装 -------- */
+// 仅按日期“包含”搜索（后端 /cloudinary-by-date）
 async function cloudSearchByDate(dateISO, limit = 200) {
-  const r = await fetch(`${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(dateISO)}&limit=${limit}`);
+  const cleanDate = sanitizeAscii(dateISO);       // ✅ 先清洗
+  const url = `${BACKEND}/cloudinary-by-date?date=${encodeURIComponent(cleanDate)}&limit=${limit}`;
+  console.log('[by-date → backend]', { cleanDate, url }); // 调试用
+  const r = await fetch(url);
   const j = await r.json();
   if (!r.ok || j.ok === false) throw new Error(j?.error || `HTTP ${r.status}`);
   return j; // { ok:true, resources:[...] }
