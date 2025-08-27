@@ -325,8 +325,7 @@ async function cloudSearchByDate(dateISO, limit = 200) {
       const msg = document.getElementById('msgA');
       const list= document.getElementById('listA');
       const pics= document.getElementById('picsA');
-      const res = await cloudSearchByDate(dateISO, 200);
-      const arr = res.resources || [];
+      
 
       list.innerHTML = ''; pics.innerHTML = ''; msg.textContent = '';
       if (!hdr) { msg.textContent = '请选择日期'; return; }
