@@ -373,43 +373,30 @@ async function loadByDate() {
   }
   if (!counter) { msg.textContent = '该日期 / 类别下暂无记录'; pics.innerHTML=''; return; }
 
-  // === 右侧图片查询 ===
-  // 先尝试 context（如果上传时写过 context:date=YYYY-MM-DD）
-  const exprByContext = `context:date=${dateISO}`;
+ // === 右侧图片：现在只给后端一个 date，后端搞定表达式 ===
+let res;
+try {
+  res = await cloudSearchByDate(dateISO, 200);
+} catch (e) {
+  msg.textContent = '图片加载失败';
+  res = { resources: [] };
+}
 
-  // 回退到 public_id 片段匹配 —— 注意：这里**必须**是等号 `=`
-  const star = '*'; // 明确 ASCII *
-  const exprById =`public_id=${star}__${dateISO}__${star}`;
-
-  // 打印检查下到底发了什么（调好后可删）
-  console.log('[cloudinary expr]', { exprByContext, exprById });
-
-  let res; // 只声明一次，避免重复声明错误
-  try {
-    res = await cloudSearchByExpr(exprByContext, 200);
-    if (!res.resources || !res.resources.length) {
-      res = await cloudSearchByExpr(exprById, 200);
-    }
-  } catch (e) {
-    // 代理/表达式失败，直接用 public_id 回退
-    res = await cloudSearchByExpr(exprById, 200);
-  }
-
-  pics.innerHTML = '';
-  (res.resources || []).forEach(img => {
-    const urlThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
-    const urlRaw   = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
-    const a = document.createElement('a');
-    a.href = urlRaw; a.target = '_blank'; a.rel = 'noopener';
-    const el = document.createElement('img');
-    el.src = urlThumb; el.alt = img.public_id;
-    el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
-    a.appendChild(el);
-    pics.appendChild(a);
-  });
-  if (!pics.children.length) {
-    pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
-  }
+pics.innerHTML = '';
+(res.resources || []).forEach(img => {
+  const urlThumb = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/c_fill,w_500,h_350,q_auto,f_auto/${img.public_id}.jpg`;
+  const urlRaw   = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${img.public_id}.jpg`;
+  const a = document.createElement('a');
+  a.href = urlRaw; a.target = '_blank'; a.rel='noopener';
+  const el = document.createElement('img');
+  el.src = urlThumb; el.alt = img.public_id;
+  el.className = 'w-full h-28 object-cover rounded-lg border border-sjgold/20 hover:opacity-90 transition';
+  a.appendChild(el);
+  pics.appendChild(a);
+});
+if (!pics.children.length) {
+  pics.innerHTML = '<div class="text-xs opacity-70">未找到该日期的照片</div>';
+}
 }
 
 
