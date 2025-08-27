@@ -379,7 +379,7 @@ async function loadByDate() {
 
   // 回退到 public_id 片段匹配 —— 注意：这里**必须**是等号 `=`
   const star = '*'; // 明确 ASCII *
-  const exprById = `public_id=${star}__${dateISO}__${star}`;
+  const exprById =`public_id=${star}__${dateISO}__${star}`;
 
   // 打印检查下到底发了什么（调好后可删）
   console.log('[cloudinary expr]', { exprByContext, exprById });
