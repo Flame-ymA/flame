@@ -411,7 +411,9 @@ function sanitizeExpr(expr) {
      // === 右侧图片（只按日期，让后端拼表达式） ===
         // ✅ 只声明一次
       let dateISO = toISOFromHeader(hdr);
-      dateISO = sanitizeAscii(dateISO);   
+      dateISO = sanitizeAscii(dateISO);  
+      console.log('[expr-before-send]', dateISO);
+console.log('[expr-final]', `public_id:*${dateISO}*`);
 let res;
 try {
   res = await cloudSearchByDate(dateISO, 200);
@@ -438,8 +440,6 @@ if (!arr.length) {
     pics.appendChild(a);
   }
 }
-      console.log('[expr-before-send]', dateISO);
-console.log('[expr-final]', `public_id:*${dateISO}*`);
     }
 
     /* ==================== 车型模式 ==================== */
